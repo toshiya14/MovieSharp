@@ -11,7 +11,7 @@ namespace MovieSharp.Skia;
 public static class DrawVideoFrameExtensions
 {
 
-    public static unsafe void DrawVideoFrame(this SKCanvas cvs, IVideoSource vid, double t, SKPoint pos)
+    public static unsafe void DrawVideoFrame(this SKCanvas cvs, SKPaint? paint, IVideoSource vid, double t, SKPoint pos)
     {
         var (width, height) = vid.Size;
         var frame = vid.MakeFrameByTime(t);
@@ -26,12 +26,19 @@ public static class DrawVideoFrameExtensions
             var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
             var bitmap = new SKBitmap(info);
             bitmap.InstallPixels(info, (IntPtr)mh.Pointer, bitmap.RowBytes, delegate { mh.Dispose(); }, cvs);
-            cvs.DrawBitmap(bitmap, pos);
+            if (paint is null)
+            {
+                cvs.DrawBitmap(bitmap, pos);
+            }
+            else
+            {
+                cvs.DrawBitmap(bitmap, pos, paint);
+            }
         }
     }
 
-    public static void DrawVideoFrame(this SKCanvas cvs, IVideoSource vid, double t)
+    public static void DrawVideoFrame(this SKCanvas cvs, SKPaint? paint, IVideoSource vid, double t)
     {
-        cvs.DrawVideoFrame(vid, t, new SKPoint(0, 0));
+        cvs.DrawVideoFrame(paint, vid, t, new SKPoint(0, 0));
     }
 }

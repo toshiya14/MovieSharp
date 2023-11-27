@@ -14,9 +14,9 @@ public class SlicedVideoClipProxy : IVideoClip
     private double StartTime { get; }
     private double EndTime { get; }
 
-    public Coordinate Size => throw new NotImplementedException();
+    public Coordinate Size => this.baseclip.Size;
 
-    public double Duration => throw new NotImplementedException();
+    public double Duration => this.EndTime - this.StartTime;
 
     public SlicedVideoClipProxy(IVideoClip baseclip, double startTime, double endTime)
     {
@@ -25,12 +25,12 @@ public class SlicedVideoClipProxy : IVideoClip
         this.EndTime = endTime;
     }
 
-    public void Draw(SKCanvas canvas, double time)
+    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         var realTime = time + this.StartTime;
-        if (realTime < this.StartTime || realTime >= this.EndTime)
+        if (realTime > this.StartTime && realTime <= this.EndTime)
         {
-            this.baseclip.Draw(canvas, realTime);
+            this.baseclip.Draw(canvas, paint, realTime);
         }
     }
 

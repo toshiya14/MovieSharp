@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MovieSharp.Composers.Videos;
 
-internal class TransformedVideoClipProxy : IVideoClip, ITransformableVideo
+internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
 {
     private readonly IVideoClip baseclip;
     private readonly List<(string, float, float?)> transforms = new();
@@ -42,19 +42,26 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformableVideo
         this.baseclip = baseclip;
     }
 
-    public void AddTranslate(float x, float y) {
+    public IVideoClip ToClip() {
+        return this;
+    }
+
+    public ITransformedVideoClip AddTranslate(float x, float y) {
         this.transforms.Add(("translate", x, y));
+        return this;
     }
 
-    public void AddScale(float factor) {
+    public ITransformedVideoClip AddScale(float factor) {
         this.transforms.Add(("scale", factor, null));
+        return this;
     }
 
-    public void AddScale(float x, float y) {
+    public ITransformedVideoClip AddScale(float x, float y) {
         this.transforms.Add(("scale", x, y));
+        return this;
     }
 
-    public void Draw(SKCanvas canvas, double time)
+    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         canvas.Save();
 
@@ -73,7 +80,7 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformableVideo
                     break;
             }
         }
-        this.baseclip.Draw(canvas, time);
+        this.baseclip.Draw(canvas, paint, time);
 
         canvas.Restore();
     }

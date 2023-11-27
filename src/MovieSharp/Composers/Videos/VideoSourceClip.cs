@@ -42,13 +42,13 @@ internal class VideoSourceClip : IVideoClip
     /// </summary>
     /// <param name="canvas">the skia canvas.</param>
     /// <param name="offsetTime">The offset time from the start of this clip.</param>
-    public void Draw(SKCanvas canvas, double offsetTime)
+    public void Draw(SKCanvas canvas, SKPaint? paint, double offsetTime)
     {
         if (offsetTime > this.Duration || offsetTime < 0)
         {
             return;
         }
-        canvas.DrawVideoFrame(this.FrameProvider, offsetTime);
+        canvas.DrawVideoFrame(paint, this.FrameProvider, offsetTime);
     }
 
     public void Dispose() {

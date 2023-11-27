@@ -21,7 +21,7 @@ public interface IAudioClip : IDisposable
 
 public static class IAudioClipExtensions
 {
-    public static IAudioClip ToClip(this IAudioSource source)
+    public static IAudioClip MakeClip(this IAudioSource source)
     {
         return new AudioSourceClip(source);
     }

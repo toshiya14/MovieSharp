@@ -1,4 +1,5 @@
-﻿using MovieSharp.Objects;
+﻿using MovieSharp.Composers.Timelines;
+using MovieSharp.Objects;
 using MovieSharp.Objects.EncodingParameters;
 using MovieSharp.Targets.Videos;
 using System;
@@ -36,9 +37,10 @@ public interface ICompose : IAudioClip, IVideoClip
     event EventHandler<OnFrameWrittenEventArgs>? OnFrameWritten;
     event EventHandler<FFProgressData>? OnFrameEncoded;
 
-    void PutVideo(IVideoClip video, double time);
-    void PutAudio(IAudioClip audio, double time);
+    void PutVideo(double time, IVideoClip video);
+    void PutAudio(double time, IAudioClip audio);
     void ComposeVideo(FFVideoParams? p = null);
     void ComposeAudio(NAudioParams? p = null);
     void Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
+    TimeRange DetectMaxRange();
 }

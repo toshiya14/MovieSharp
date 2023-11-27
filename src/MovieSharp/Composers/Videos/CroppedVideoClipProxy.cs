@@ -25,14 +25,15 @@ internal class CroppedVideoClipProxy : IVideoClip
         this.Size = new Coordinate(croparea.Width, croparea.Height);
     }
 
-    public void Draw(SKCanvas canvas, double time)
+    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         using var bmp = new SKBitmap(this.baseclip.Size.X, this.baseclip.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         using var cvs = new SKCanvas(bmp);
-        this.baseclip.Draw(cvs, time);
+        this.baseclip.Draw(cvs, paint, time);
         var srcrect = new SKRect(croparea.Left, croparea.Top, croparea.Right, croparea.Bottom);
         var tarrect = new SKRect(0, 0, croparea.Width, croparea.Height);
         cvs.Flush();
+
         canvas.DrawBitmap(bmp, srcrect, tarrect);
     }
 

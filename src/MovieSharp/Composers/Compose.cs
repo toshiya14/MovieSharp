@@ -1,6 +1,7 @@
 ﻿
 using System.Diagnostics;
 using MovieSharp.Composers.Timelines;
+using MovieSharp.Exceptions;
 using MovieSharp.Objects;
 using MovieSharp.Objects.EncodingParameters;
 using MovieSharp.Targets.Videos;
@@ -24,9 +25,9 @@ internal class Compose : ICompose
     private ILogger log = LogManager.GetCurrentClassLogger();
 #endif
 
-    private List<VideoTimelineItem> videos = new();
+    private List<ComposeVideoTrack> videos = new();
 
-    private List<AudioTimelineItem> audios = new();
+    private List<ComposeAudioTrack> audios = new();
 
     private double duration;
 
@@ -43,8 +44,8 @@ internal class Compose : ICompose
     {
         get
         {
-            var vd = this.videos.Select(x => x.Time + x.FrameProvider.Duration).Max();
-            var ad = this.audios.Select(x => x.Time + x.WaveProvider.Duration).Max();
+            var vd = this.videos.Select(x => x.Time + x.Clip.Duration).Max();
+            var ad = this.audios.Select(x => x.Time + x.Clip.Duration).Max();
             return Math.Max(vd, ad);
         }
     }
@@ -66,12 +67,12 @@ internal class Compose : ICompose
     }
 
 
-    public void PutVideo(IVideoClip clip, double time)
+    public void PutVideo(double time, IVideoClip clip)
     {
         this.videos.Add(new(time, clip));
     }
 
-    public void PutAudio(IAudioClip clip, double time)
+    public void PutAudio(double time, IAudioClip clip)
     {
         var _clip = clip;
         if (this.Channels != clip.Channels)
@@ -85,7 +86,7 @@ internal class Compose : ICompose
         this.audios.Add(new(time, _clip));
     }
 
-    public void Draw(SKCanvas canvas, double time)
+    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         var (w, h) = this.Size;
         using var bmp = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
@@ -93,7 +94,7 @@ internal class Compose : ICompose
         foreach (var layout in videos.Where(x => x.Time < time))
         {
             var offsetTime = time - layout.Time;
-            layout.FrameProvider.Draw(cvs, offsetTime);
+            layout.Clip.Draw(cvs, paint, offsetTime);
         }
         cvs.Flush();
         canvas.DrawBitmap(bmp, 0, 0);
@@ -103,7 +104,7 @@ internal class Compose : ICompose
     {
         var offseted = this.audios.Select(x =>
         {
-            var offset = new OffsetSampleProvider(x.WaveProvider.GetSampler())
+            var offset = new OffsetSampleProvider(x.Clip.GetSampler())
             {
                 DelayBy = TimeSpan.FromSeconds(x.Time)
             };
@@ -117,13 +118,19 @@ internal class Compose : ICompose
     {
         foreach (var v in videos)
         {
-            v.FrameProvider.Dispose();
+            v.Clip.Dispose();
         }
         foreach (var a in audios)
         {
-            a.WaveProvider.Dispose();
+            a.Clip.Dispose();
         }
         GC.SuppressFinalize(this);
+    }
+
+    public TimeRange DetectMaxRange() {
+        var maxAudioDuration = this.audios.Select(x => x.Time + x.Clip.Duration).Max();
+        var maxVideoDuration = this.videos.Select(x => x.Time + x.Clip.Duration).Max();
+        return new TimeRange(0, Math.Min(maxAudioDuration, maxVideoDuration));
     }
 
     public void ComposeVideo(FFVideoParams? p = null)
@@ -141,24 +148,33 @@ internal class Compose : ICompose
             param.WithCopyAudio = this.TempAudioFile;
         }
 
-        long startFrame, endFrame;
+        double start, end;
         if (this.RenderRange is not null)
         {
-            startFrame = (long)(this.RenderRange.Value.Left * this.FrameRate);
-            endFrame = (long)(this.RenderRange.Value.Right * this.FrameRate);
+            start = this.RenderRange.Value.Left;
+            end = this.RenderRange.Value.Right;
         }
         else
         {
-            startFrame = 0;
-            endFrame = (long)(this.Duration * this.FrameRate);
+            start = 0;
+            end = this.Duration;
         }
+
+        var maxVideoDuration = this.videos.Select(x => x.Time + x.Clip.Duration).Max();
+        if (end > maxVideoDuration)
+        {
+            throw new MovieSharpException(MovieSharpErrorType.RenderRangeOverflow, $"Max video duration in this compose can not satisfied the end of rendering. (max: {maxVideoDuration}, end: {end})");
+        }
+        var startFrame = (long)(start * this.FrameRate);
+        var endFrame = (long)(end * this.FrameRate);
 
         using var writer = new FFVideoFileTarget(param, this.OutputFile, param.FFMPEGBinary);
         using var bmp = new SKBitmap(param.Size.X, param.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         var step = 1.0 / this.FrameRate;
 
         writer.Init();
-        writer.OnProgress += (sender, e) => {
+        writer.OnProgress += (sender, e) =>
+        {
             this.OnFrameEncoded?.Invoke(sender, e);
         };
         for (var i = startFrame; i <= endFrame; i++)
@@ -170,7 +186,7 @@ internal class Compose : ICompose
             var time = i * step;
             using var cvs = new SKCanvas(bmp);
             cvs.Clear();
-            this.Draw(cvs, time);
+            this.Draw(cvs, null, time);
             cvs.Flush();
             writer.WriteFrame(bmp.Bytes.AsMemory());
 
@@ -190,9 +206,35 @@ internal class Compose : ICompose
     {
         var param = p ?? new NAudioParams();
 
-        var wave = param.Resample is null ?
-            this.GetSampler().ToWaveProvider() :
-            new MediaFoundationResampler(this.GetSampler().ToWaveProvider(), param.Resample.Value);
+        var sampler = param.Resample is null ?
+            this.GetSampler() :
+            new MediaFoundationResampler(this.GetSampler().ToWaveProvider(), param.Resample.Value).ToSampleProvider();
+
+
+        double start, end;
+        if (this.RenderRange is not null)
+        {
+            start = this.RenderRange.Value.Left;
+            end = this.RenderRange.Value.Right;
+        }
+        else
+        {
+            start = 0;
+            end = this.Duration;
+        }
+
+        var maxAudioLength = this.audios.Select(x => x.Time + x.Clip.Duration).Max();
+        if (end > maxAudioLength) {
+
+            throw new MovieSharpException(MovieSharpErrorType.RenderRangeOverflow, $"Max audio duration in this compose can not satisfied the end of rendering. (max: {maxAudioLength}, end: {end})");
+        }
+
+        var slice = new OffsetSampleProvider(sampler) { 
+            SkipOver = TimeSpan.FromSeconds(start),
+            Take = TimeSpan.FromSeconds(end - start)
+        };
+
+        var wave = slice.ToWaveProvider();
 
         var outputPath = this.TempAudioFile ?? Path.GetTempFileName();
         switch (param.Codec.ToLower())

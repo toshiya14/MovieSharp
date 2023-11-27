@@ -162,6 +162,9 @@ internal class FFVideoFileTarget : IDisposable
                 break;
 
             case "speed":
+                if (value == "N/A") {
+                    break;
+                }
                 this.progress.Speed = Convert.ToSingle(value[..^1]);
                 break;
         }
