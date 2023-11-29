@@ -1,10 +1,4 @@
 ﻿using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers.Audios;
 
@@ -17,19 +11,22 @@ internal class ResampleAudioClipProxy : IAudioClip
 
     public int Channels => this.baseclip.Channels;
 
-    public int SampleRate => samplerate;
+    public int SampleRate => this.samplerate;
 
-    public ResampleAudioClipProxy(IAudioClip baseclip, int samplerate) {
+    public ResampleAudioClipProxy(IAudioClip baseclip, int samplerate)
+    {
         this.baseclip = baseclip;
         this.samplerate = samplerate;
     }
 
-    public ISampleProvider GetSampler() {
+    public ISampleProvider GetSampler()
+    {
         var rsp = new MediaFoundationResampler(this.baseclip.GetSampler().ToWaveProvider(), this.samplerate);
         return rsp.ToSampleProvider();
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.baseclip.Dispose();
         GC.SuppressFinalize(this);
     }

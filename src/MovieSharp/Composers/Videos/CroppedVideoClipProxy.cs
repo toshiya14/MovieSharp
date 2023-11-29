@@ -1,11 +1,5 @@
 ﻿using MovieSharp.Objects;
-using MovieSharp.Skia;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers.Videos;
 
@@ -30,14 +24,15 @@ internal class CroppedVideoClipProxy : IVideoClip
         using var bmp = new SKBitmap(this.baseclip.Size.X, this.baseclip.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         using var cvs = new SKCanvas(bmp);
         this.baseclip.Draw(cvs, paint, time);
-        var srcrect = new SKRect(croparea.Left, croparea.Top, croparea.Right, croparea.Bottom);
-        var tarrect = new SKRect(0, 0, croparea.Width, croparea.Height);
+        var srcrect = new SKRect(this.croparea.Left, this.croparea.Top, this.croparea.Right, this.croparea.Bottom);
+        var tarrect = new SKRect(0, 0, this.croparea.Width, this.croparea.Height);
         cvs.Flush();
 
         canvas.DrawBitmap(bmp, srcrect, tarrect);
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.baseclip.Dispose();
         GC.SuppressFinalize(this);
     }

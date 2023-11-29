@@ -1,9 +1,4 @@
 ﻿using MovieSharp.Objects.Subtitles;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Tools
 {
@@ -20,39 +15,42 @@ namespace MovieSharp.Tools
 
         public SimpleSubtitleTimelineContext WithTimeline(Action<TimelineItem> action)
         {
-            action(timeline);
+            action(this.timeline);
             return this;
         }
 
         public SimpleSubtitleTimelineContext WithFont(Action<FontDefinition> action)
         {
-            action(font);
+            action(this.font);
             return this;
         }
     }
 
-    public class ComplexSubtitleTimelineContext {
+    public class ComplexSubtitleTimelineContext
+    {
         readonly TimelineItem timeline;
         readonly FontDefinition defaultFont;
 
-        public ComplexSubtitleTimelineContext(TimelineItem timeline) {
+        public ComplexSubtitleTimelineContext(TimelineItem timeline)
+        {
             this.timeline = timeline;
             this.defaultFont = new FontDefinition();
         }
 
         public ComplexSubtitleTimelineContext WithTimeline(Action<TimelineItem> action)
         {
-            action(timeline);
+            action(this.timeline);
             return this;
         }
 
         public ComplexSubtitleTimelineContext UseFont(Action<FontDefinition> action)
         {
-            action(defaultFont);
+            action(this.defaultFont);
             return this;
         }
 
-        public ComplexSubtitleTimelineContext AddRun(string text) {
+        public ComplexSubtitleTimelineContext AddRun(string text)
+        {
             var run = new TextRun(text) { Font = this.defaultFont.Clone() };
             this.timeline.Contents.Add(run);
             return this;

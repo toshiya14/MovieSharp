@@ -1,12 +1,6 @@
 ﻿using MovieSharp.Composers.Videos;
 using MovieSharp.Objects;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers;
 
@@ -56,5 +50,20 @@ public static class IVideoClipExtensions
         {
             return new FilteredVideoClipProxy(clip);
         }
+    }
+
+    public static IVideoClip ChangeSpeed(this IVideoClip clip, double speed)
+    {
+        return new SpeedChangedVideoClipProxy(clip, speed);
+    }
+
+    public static IVideoClip RepeatTo(this IVideoClip clip, double newDuration)
+    {
+        return new RepeatedVideoClipProxy(clip, newDuration);
+    }
+
+    public static IVideoClip RepeatTimes(this IVideoClip clip, int times)
+    {
+        return new RepeatedVideoClipProxy(clip, clip.Duration * times);
     }
 }

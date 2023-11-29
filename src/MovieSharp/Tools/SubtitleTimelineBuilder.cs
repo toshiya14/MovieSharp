@@ -1,9 +1,4 @@
 ﻿using MovieSharp.Objects.Subtitles;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Tools;
 
@@ -24,7 +19,8 @@ public class SubtitleTimelineBuilder
         return new SimpleSubtitleTimelineContext(item, run.Font);
     }
 
-    public ComplexSubtitleTimelineContext AddComplex(double start, double end) {
+    public ComplexSubtitleTimelineContext AddComplex(double start, double end)
+    {
         var item = new TimelineItem()
         {
             Start = start,
@@ -34,7 +30,8 @@ public class SubtitleTimelineBuilder
         return new ComplexSubtitleTimelineContext(item);
     }
 
-    public List<TimelineItem> Make() {
+    public List<TimelineItem> Make()
+    {
         return this.items;
     }
 }

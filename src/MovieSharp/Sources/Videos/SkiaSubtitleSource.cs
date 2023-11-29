@@ -3,12 +3,6 @@ using MovieSharp.Objects.Subtitles;
 using MovieSharp.Objects.Subtitles.Drawings;
 using MovieSharp.Tools;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Sources.Videos;
 
@@ -17,30 +11,30 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
     private List<TimelineItem> items;
     private DrawingTextBox? lastTextBox;
 
-    public long FrameCount => (long)(Duration * FrameRate);
+    public long FrameCount => (long)(this.Duration * this.FrameRate);
 
     public double FrameRate { get; }
 
     public Coordinate Size { get; }
 
     public PixelFormat PixelFormat { get; }
-    public double Duration => items.Select(x => x.End).Max();
+    public double Duration => this.items.Select(x => x.End).Max();
     public SKImageInfo ImageInfo { get; }
 
     public SkiaSubtitleSource((int, int) renderBound, double framerate, PixelFormat? pixfmt = null)
     {
-        items = new List<TimelineItem>();
-        Size = new Coordinate(renderBound);
-        FrameRate = framerate;
-        PixelFormat = pixfmt ?? PixelFormat.RGBA32;
+        this.items = new List<TimelineItem>();
+        this.Size = new Coordinate(renderBound);
+        this.FrameRate = framerate;
+        this.PixelFormat = pixfmt ?? PixelFormat.RGBA32;
 
-        var (w, h) = Size;
-        ImageInfo = new SKImageInfo(w, h, PixelFormat.GetColorType(), SKAlphaType.Unpremul);
+        var (w, h) = this.Size;
+        this.ImageInfo = new SKImageInfo(w, h, this.PixelFormat.GetColorType(), SKAlphaType.Unpremul);
     }
 
     public void From(SubtitleTimelineBuilder stb)
     {
-        items = stb.Make();
+        this.items = stb.Make();
     }
 
     public IVideoSource AsVideoSource()
@@ -50,17 +44,17 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 
     public Memory<byte>? MakeFrame(long frameIndex)
     {
-        return MakeFrameByTime(frameIndex * FrameRate);
+        return this.MakeFrameByTime(frameIndex * this.FrameRate);
     }
 
     public Memory<byte>? MakeFrameByTime(double t)
     {
-        using var bitmap = new SKBitmap(ImageInfo);
+        using var bitmap = new SKBitmap(this.ImageInfo);
         using var cvs = new SKCanvas(bitmap);
 
-        foreach (var part in items.Where(x => x.Start <= t && x.End >= t))
+        foreach (var part in this.items.Where(x => x.Start <= t && x.End >= t))
         {
-            DrawPart(cvs, part);
+            this.DrawPart(cvs, part);
         }
 
         cvs.Flush();
@@ -83,7 +77,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
     {
         var box = new DrawingTextBox();
 
-        box.BoxSize.X = Size.X;
+        box.BoxSize.X = this.Size.X;
         var widthLimit = box.BoxSize.X;
         var widthRest = (float)widthLimit;
         var line = new DrawingTextLine(box, 1, 0f);
@@ -162,10 +156,10 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         // set the property for textbox.
         box.BoxSize.Y = (int)Math.Ceiling(line.Top + line.MaxHeight);
         box.Position = new Coordinate(
-            (int)(Size.X * part.Anchor.X - box.BoxSize.X * part.Anchor.X),
-            (int)(Size.Y * part.Anchor.Y - box.BoxSize.Y * part.Anchor.Y)
+            (int)(this.Size.X * part.Anchor.X - box.BoxSize.X * part.Anchor.X),
+            (int)(this.Size.Y * part.Anchor.Y - box.BoxSize.Y * part.Anchor.Y)
         );
-        lastTextBox = box;
+        this.lastTextBox = box;
         return box;
     }
 
@@ -176,7 +170,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
             return;
         }
 
-        var textbox = MeasurePart(part);
+        var textbox = this.MeasurePart(part);
         foreach (var line in textbox.Lines)
         {
             foreach (var (run, pos) in line.Enumerate())
@@ -195,10 +189,11 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 
     public void AppendSubtitle(TimelineItem item)
     {
-        items.Add(item);
+        this.items.Add(item);
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         GC.SuppressFinalize(this);
     }
 
@@ -213,7 +208,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
     {
         if (IsNUnitRunning())
         {
-            return lastTextBox;
+            return this.lastTextBox;
         }
         return null;
     }

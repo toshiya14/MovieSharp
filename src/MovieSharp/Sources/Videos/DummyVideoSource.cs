@@ -1,15 +1,10 @@
 ﻿using MovieSharp.Objects;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Sources.Videos;
 
 internal class DummyVideoSource : IVideoSource
 {
-    public long FrameCount => (long)(Duration * FrameRate);
+    public long FrameCount => (long)(this.Duration * this.FrameRate);
 
     public double FrameRate { get; }
 
@@ -25,34 +20,34 @@ internal class DummyVideoSource : IVideoSource
     public DummyVideoSource(RGBAColor? background, PixelFormat pixfmt, (int, int) size, double frameRate, double duration)
     {
         this.background = background;
-        PixelFormat = pixfmt;
-        Size = new Coordinate(size);
-        FrameRate = frameRate;
-        Duration = duration;
+        this.PixelFormat = pixfmt;
+        this.Size = new Coordinate(size);
+        this.FrameRate = frameRate;
+        this.Duration = duration;
     }
 
     private Memory<byte>? MakeFrame()
     {
-        if (background is null)
+        if (this.background is null)
         {
             return null;
         }
 
-        var bytesEachColor = PixelFormat.BitsEachColor / 8;
+        var bytesEachColor = this.PixelFormat.BitsEachColor / 8;
         var pixel = new byte[bytesEachColor];
-        for (var i = 0; i < PixelFormat.ComponentsOrder.Length; i++)
+        for (var i = 0; i < this.PixelFormat.ComponentsOrder.Length; i++)
         {
-            var p = PixelFormat.ComponentsOrder[i];
+            var p = this.PixelFormat.ComponentsOrder[i];
             switch (p)
             {
-                case 'r': pixel[i] = background.Red; break;
-                case 'g': pixel[i] = background.Green; break;
-                case 'b': pixel[i] = background.Blue; break;
-                case 'a': pixel[i] = background.Alpha; break;
+                case 'r': pixel[i] = this.background.Red; break;
+                case 'g': pixel[i] = this.background.Green; break;
+                case 'b': pixel[i] = this.background.Blue; break;
+                case 'a': pixel[i] = this.background.Alpha; break;
             }
         }
 
-        var (w, h) = Size;
+        var (w, h) = this.Size;
         var pixelsCount = w * h * bytesEachColor;
         var pixels = new byte[pixelsCount];
         for (var i = 0; i < pixelsCount; i += bytesEachColor)
@@ -69,15 +64,16 @@ internal class DummyVideoSource : IVideoSource
 
     public Memory<byte>? MakeFrame(long frameIndex)
     {
-        return buffer ?? MakeFrame();
+        return this.buffer ?? this.MakeFrame();
     }
 
     public Memory<byte>? MakeFrameByTime(double t)
     {
-        return buffer ?? MakeFrame();
+        return this.buffer ?? this.MakeFrame();
     }
 
-    public void Dispose() { 
+    public void Dispose()
+    {
         GC.SuppressFinalize(this);
     }
 }

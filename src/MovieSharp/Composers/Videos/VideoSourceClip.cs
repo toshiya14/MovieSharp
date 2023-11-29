@@ -1,18 +1,15 @@
-﻿using MovieSharp.Objects;
-using MovieSharp;
-using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MovieSharp.Skia;
+﻿using MovieSharp;
 using MovieSharp.Composers;
+using MovieSharp.Objects;
+using MovieSharp.Skia;
+using NLog;
+using SkiaSharp;
 internal class VideoSourceClip : IVideoClip
 {
     private IVideoSource FrameProvider { get; set; }
     public Coordinate Size => this.FrameProvider.Size;
     public double Duration => this.FrameProvider.Duration;
+    private readonly ILogger log = LogManager.GetCurrentClassLogger();
 
     /// <summary>
     /// Create VideoClip from IVideoSource, use `0` as start, and IVideoSource.Duration as end.
@@ -44,6 +41,7 @@ internal class VideoSourceClip : IVideoClip
     /// <param name="offsetTime">The offset time from the start of this clip.</param>
     public void Draw(SKCanvas canvas, SKPaint? paint, double offsetTime)
     {
+        this.log.Debug($"Draw on {offsetTime}");
         if (offsetTime > this.Duration || offsetTime < 0)
         {
             return;
@@ -51,7 +49,8 @@ internal class VideoSourceClip : IVideoClip
         canvas.DrawVideoFrame(paint, this.FrameProvider, offsetTime);
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.FrameProvider.Dispose();
         GC.SuppressFinalize(this);
     }

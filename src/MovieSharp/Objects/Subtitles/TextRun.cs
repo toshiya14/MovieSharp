@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MovieSharp.Objects.Subtitles;
+﻿namespace MovieSharp.Objects.Subtitles;
 
 public record TextRun(string Text)
 {
@@ -16,7 +10,8 @@ public record TextRun(string Text)
     /// </summary>
     /// <param name="index">The split position in Text.</param>
     /// <returns></returns>
-    public (TextRun, TextRun) Fission(int index) {
+    public (TextRun, TextRun) Fission(int index)
+    {
         var left = this.Text[..index];
         var right = this.Text[index..];
         return (this with { Text = left }, this with { Text = right });

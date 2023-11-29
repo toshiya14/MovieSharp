@@ -1,9 +1,4 @@
 ﻿using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers.Audios;
 
@@ -16,15 +11,18 @@ internal class AudioSourceClip : IAudioClip
 
     public int SampleRate => this.source.GetSampler().WaveFormat.SampleRate;
 
-    public AudioSourceClip(IAudioSource source) {
+    public AudioSourceClip(IAudioSource source)
+    {
         this.source = source;
     }
 
-    public ISampleProvider GetSampler() {
+    public ISampleProvider GetSampler()
+    {
         return this.source.GetSampler();
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.source.Dispose();
         GC.SuppressFinalize(this);
     }

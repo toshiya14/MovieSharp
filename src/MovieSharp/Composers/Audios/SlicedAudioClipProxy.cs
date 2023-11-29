@@ -1,10 +1,4 @@
-﻿using NAudio.Wave.SampleProviders;
-using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using NAudio.Wave;
 
 namespace MovieSharp.Composers.Audios;
 
@@ -24,7 +18,7 @@ internal class SlicedAudioClipProxy : IAudioClip
     public SlicedAudioClipProxy(IAudioClip baseclip, double start, double end)
     {
         this.baseclip = baseclip;
-        if(start < 0 || end > this.baseclip.Duration)
+        if (start < 0 || end > this.baseclip.Duration)
         {
             throw new ArgumentException("The specified start/end is out of the range of the duration of the baseclip.");
         }

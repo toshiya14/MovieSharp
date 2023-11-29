@@ -1,10 +1,5 @@
 ﻿using MovieSharp.Objects;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers.Videos;
 
@@ -34,7 +29,8 @@ public class SlicedVideoClipProxy : IVideoClip
         }
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.baseclip.Dispose();
         GC.SuppressFinalize(this);
     }

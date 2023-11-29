@@ -1,9 +1,4 @@
 ﻿using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Objects;
 
@@ -24,7 +19,8 @@ public class PixelFormat
     public static PixelFormat BGRA32 => new("bgra", 32);
     public static PixelFormat ARGB32 => new("argb", 32);
 
-    public SKColorType GetColorType() {
+    public SKColorType GetColorType()
+    {
         if (this.ComponentsOrder == "rgba" && this.BitsEachColor == 32)
         {
             return SKColorType.Rgba8888;
@@ -33,13 +29,16 @@ public class PixelFormat
         {
             return SKColorType.Bgra8888;
         }
-        else {
+        else
+        {
             throw new ArgumentException($"SKColorType do not support {this.ComponentsOrder}:{this.BitsEachColor}.");
         }
     }
 
-    public string ToFFPixfmt() {
-        switch (this.ComponentsOrder) {
+    public string ToFFPixfmt()
+    {
+        switch (this.ComponentsOrder)
+        {
             case "rgb": return "rgb24";
             case "bgr": return "bgr24";
             case "rgba": return "rgba";

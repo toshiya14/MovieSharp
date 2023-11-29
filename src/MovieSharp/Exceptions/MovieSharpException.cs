@@ -1,15 +1,13 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections;
 
 namespace MovieSharp.Exceptions;
 
 public enum MovieSharpErrorType
 {
-    RenderRangeOverflow
+    RenderRangeOverflow,
+    RenderRangeNotSet,
+    ComposeNoClip,
+    DrawingTimeGreaterThanDuration,
 }
 
 public class MovieSharpException : Exception
@@ -18,12 +16,12 @@ public class MovieSharpException : Exception
     private readonly Dictionary<string, object> data = new();
 
     public MovieSharpErrorType ErrorType { get; set; }
-    public override IDictionary Data => data;
+    public override IDictionary Data => this.data;
 
 
     public MovieSharpException(MovieSharpErrorType errorType, string? msg = null, Exception? inner = null) : base(msg, inner)
     {
-        data["errorType"] = errorType;
+        this.data["errorType"] = errorType;
         this.ErrorType = errorType;
     }
 

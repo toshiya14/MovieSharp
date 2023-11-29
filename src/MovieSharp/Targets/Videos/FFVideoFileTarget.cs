@@ -1,12 +1,6 @@
-﻿using MovieSharp.Objects.EncodingParameters;
+﻿using System.Diagnostics;
+using MovieSharp.Objects.EncodingParameters;
 using NLog;
-using NLog.Fluent;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Targets.Videos;
 
@@ -41,47 +35,47 @@ internal class FFVideoFileTarget : IDisposable
             "-loglevel", "error",
             "-f", "rawvideo",
             "-vcodec", "rawvideo",
-            "-s", $"{parameters.Size!.X}x{parameters.Size!.Y}",
-            "-pix_fmt", parameters.SourcePixfmt.ToFFPixfmt(),
-            "-r", parameters.FrameRate!.Value.ToString("0.000"),
+            "-s", $"{this.parameters.Size!.X}x{this.parameters.Size!.Y}",
+            "-pix_fmt", this.parameters.SourcePixfmt.ToFFPixfmt(),
+            "-r", this.parameters.FrameRate!.Value.ToString("0.000"),
             "-an",
             "-i",
             "-",
         };
 
-        if (parameters.WithCopyAudio is not null)
+        if (this.parameters.WithCopyAudio is not null)
         {
             arglist.AddRange(new[] {
-                "-i", $"\"{parameters.WithCopyAudio}\"",
+                "-i", $"\"{this.parameters.WithCopyAudio}\"",
                 "-acodec", "copy"
             });
         }
 
         // below: encoding parameters
         arglist.AddRange(new[] {
-            "-vcodec", parameters.Codec,
-            "-preset", parameters.Preset
+            "-vcodec", this.parameters.Codec,
+            "-preset", this.parameters.Preset
         });
 
-        if (parameters.Bitrate is not null)
+        if (this.parameters.Bitrate is not null)
         {
             arglist.AddRange(new[] {
-                "-b", parameters.Bitrate
+                "-b", this.parameters.Bitrate
             });
         }
-        else if (parameters.CRF is not null)
+        else if (this.parameters.CRF is not null)
         {
             arglist.AddRange(new[] {
-                "-crf", parameters.CRF!.Value.ToString()
+                "-crf", this.parameters.CRF!.Value.ToString()
             });
         }
 
         arglist.AddRange(new[] {
-            "-pix_fmt", parameters.TargetPixfmt
+            "-pix_fmt", this.parameters.TargetPixfmt
         });
 
         // below: filename
-        var fi = new FileInfo(outputPath);
+        var fi = new FileInfo(this.outputPath);
         if (fi.Directory?.Exists == false)
         {
             fi.Directory!.Create();
@@ -90,24 +84,24 @@ internal class FFVideoFileTarget : IDisposable
 
         // create thread
         var args = string.Join(' ', arglist);
-        log.Info("Generated args: " + args);
+        this.log.Info("Generated args: " + args);
 
         this.proc = new Process();
-        proc.StartInfo.FileName = FFMpegPath;
-        proc.StartInfo.Arguments = args;
-        proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        proc.StartInfo.RedirectStandardError = true;
-        proc.StartInfo.RedirectStandardInput = true;
-        proc.StartInfo.RedirectStandardOutput = true;
-        proc.OutputDataReceived += StdoutReceived;
-        proc.StartInfo.UseShellExecute = false;
-        proc.Start();
+        this.proc.StartInfo.FileName = this.FFMpegPath;
+        this.proc.StartInfo.Arguments = args;
+        this.proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        this.proc.StartInfo.RedirectStandardError = true;
+        this.proc.StartInfo.RedirectStandardInput = true;
+        this.proc.StartInfo.RedirectStandardOutput = true;
+        this.proc.OutputDataReceived += this.StdoutReceived;
+        this.proc.StartInfo.UseShellExecute = false;
+        this.proc.Start();
 
-        this.stdin = proc.StandardInput;
-        this.stderr = proc.StandardError;
+        this.stdin = this.proc.StandardInput;
+        this.stderr = this.proc.StandardError;
 
         this.progress = new FFProgressData();
-        proc.BeginOutputReadLine();
+        this.proc.BeginOutputReadLine();
     }
 
     private void StdoutReceived(object sender, DataReceivedEventArgs e)
@@ -162,7 +156,8 @@ internal class FFVideoFileTarget : IDisposable
                 break;
 
             case "speed":
-                if (value == "N/A") {
+                if (value == "N/A")
+                {
                     break;
                 }
                 this.progress.Speed = Convert.ToSingle(value[..^1]);

@@ -1,10 +1,5 @@
 ﻿using NAudio.Vorbis;
 using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Sources.Audios;
 
@@ -33,10 +28,11 @@ internal class NAudioFileSource : IAudioSource
 
     public ISampleProvider GetSampler()
     {
-        return (source as ISampleProvider)!;
+        return (this.source as ISampleProvider)!;
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.source?.Dispose();
         GC.SuppressFinalize(this);
     }

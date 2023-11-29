@@ -1,12 +1,6 @@
-﻿using MovieSharp.Composers.Timelines;
-using MovieSharp.Objects;
+﻿using MovieSharp.Objects;
 using MovieSharp.Objects.EncodingParameters;
 using MovieSharp.Targets.Videos;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers;
 
@@ -42,5 +36,5 @@ public interface ICompose : IAudioClip, IVideoClip
     void ComposeVideo(FFVideoParams? p = null);
     void ComposeAudio(NAudioParams? p = null);
     void Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
-    TimeRange DetectMaxRange();
+    void UseMaxRenderRange();
 }

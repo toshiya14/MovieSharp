@@ -1,9 +1,4 @@
 ﻿using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Skia;
 
@@ -28,7 +23,8 @@ internal class HardwareSurface : IDisposable
         this.Surface = SKSurface.Create(this.Context, true, this.ImageInfo);
     }
 
-    public void Dispose() {
+    public void Dispose()
+    {
         this.Surface.Dispose();
     }
 

@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace MovieSharp.Composers.Videos;
 
-namespace MovieSharp.Composers.Videos;
-
-public enum PresetFilter { 
+public enum PresetFilter
+{
     Retro,
     Sepia,
     Nostalgic,

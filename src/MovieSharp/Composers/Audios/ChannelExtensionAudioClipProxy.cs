@@ -1,10 +1,5 @@
-﻿using NAudio.Wave.SampleProviders;
-using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace MovieSharp.Composers.Audios;
 
@@ -29,7 +24,8 @@ internal class ChannelExtensionAudioClipProxy : IAudioClip
     {
         var baseChannels = this.baseclip.GetSampler().WaveFormat.Channels;
 
-        if (baseChannels == channels) {
+        if (baseChannels == this.channels)
+        {
             // No need for conversion.
             return this.baseclip.GetSampler();
         }

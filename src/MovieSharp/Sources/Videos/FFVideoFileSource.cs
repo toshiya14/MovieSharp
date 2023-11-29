@@ -1,14 +1,8 @@
-﻿using FFMpegCore;
+﻿using System.Diagnostics;
+using FFMpegCore;
 using MovieSharp.Objects;
 using MovieSharp.Tools;
 using NLog;
-using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 // This is a port from:
 // https://github.com/Zulko/moviepy/blob/9ebabda20a27780101f5c6c832ed398d28377726/moviepy/video/io/ffmpeg_reader.py
@@ -40,11 +34,11 @@ internal class FFVideoFileSource : IVideoSource
     public FFVideoFileSource(string filename, (int?, int?)? resolution = null)
     {
         // initialize members;
-        FileName = filename;
-        proc = null;
-        targetResolution = resolution;
-        Size = new Coordinate(0, 0);
-        PixelFormat = PixelFormat.RGBA32;
+        this.FileName = filename;
+        this.proc = null;
+        this.targetResolution = resolution;
+        this.Size = new Coordinate(0, 0);
+        this.PixelFormat = PixelFormat.RGBA32;
 
         // TODO: temporary not support rotate.
     }
@@ -57,26 +51,26 @@ internal class FFVideoFileSource : IVideoSource
     /// <param name="startTime"></param>
     public void Init(long startIndex = 0)
     {
-        Infos = FFProbe.Analyse(FileName);
+        this.Infos = FFProbe.Analyse(this.FileName);
 
-        if (Infos.VideoStreams.Count < 1)
+        if (this.Infos.VideoStreams.Count < 1)
         {
-            throw new Exception($"{FileName} does contain any video stream.");
+            throw new Exception($"{this.FileName} does contain any video stream.");
         }
-        var vidstream = Infos.VideoStreams[0];
+        var vidstream = this.Infos.VideoStreams[0];
 
-        FrameRate = vidstream.FrameRate;
-        Size = new Coordinate(vidstream.Width, vidstream.Height);
+        this.FrameRate = vidstream.FrameRate;
+        this.Size = new Coordinate(vidstream.Width, vidstream.Height);
 
-        if (targetResolution != null)
+        if (this.targetResolution != null)
         {
-            var (tw, th) = targetResolution.Value;
-            var (w, h) = Size;
+            var (tw, th) = this.targetResolution.Value;
+            var (w, h) = this.Size;
             if (tw is null && th is not null)
             {
                 var ratio = th / (double)h;
 
-                Size = new Coordinate(
+                this.Size = new Coordinate(
                     (int)(w * ratio),
                     (int)(h * ratio)
                 );
@@ -85,7 +79,7 @@ internal class FFVideoFileSource : IVideoSource
             {
                 var ratio = tw / (double)w;
 
-                Size = new Coordinate(
+                this.Size = new Coordinate(
                     (int)(w * ratio),
                     (int)(h * ratio)
                 );
@@ -95,21 +89,21 @@ internal class FFVideoFileSource : IVideoSource
                 var ratio1 = tw / (double)w;
                 var ratio2 = th / (double)h;
 
-                Size = new Coordinate(
+                this.Size = new Coordinate(
                     (int)(w * ratio1),
                     (int)(h * ratio2)
                 );
             }
         }
 
-        Duration = vidstream.Duration.TotalSeconds;
-        FrameCount = (long)(vidstream.FrameRate * vidstream.Duration.TotalSeconds);
-        PixelChannels = PixelFormat == PixelFormat.RGB24 || PixelFormat == PixelFormat.BGR24 ? 3 : 4;
+        this.Duration = vidstream.Duration.TotalSeconds;
+        this.FrameCount = (long)(vidstream.FrameRate * vidstream.Duration.TotalSeconds);
+        this.PixelChannels = this.PixelFormat == PixelFormat.RGB24 || this.PixelFormat == PixelFormat.BGR24 ? 3 : 4;
 
         // If there is an running or suspending task, terminate it.
-        Close(false);
+        this.Close(false);
         var arglist = new List<string>();
-        var startTime = FrameRate * startIndex;
+        var startTime = startIndex / this.FrameRate;
 
         double offset;
         if (startTime != 0)
@@ -119,7 +113,7 @@ internal class FFVideoFileSource : IVideoSource
                 "-ss",
                 (startTime - offset).ToString("f6"),
                 "-i",
-                $"\"{FileName}\"",
+                $"\"{this.FileName}\"",
                 "-ss",
                 offset.ToString("f6"),
             });
@@ -128,7 +122,7 @@ internal class FFVideoFileSource : IVideoSource
         {
             arglist.AddRange(new string[] {
                 "-i",
-                $"\"{FileName}\"",
+                $"\"{this.FileName}\"",
             });
         }
 
@@ -138,36 +132,36 @@ internal class FFVideoFileSource : IVideoSource
             "-f",
             "image2pipe",
             "-vf",
-            $"scale={Size.X}:{Size.Y}",
+            $"scale={this.Size.X}:{this.Size.Y}",
             "-sws_flags",
-            ResizeAlgo,
+            this.ResizeAlgo,
             "-pix_fmt",
-            PixfmtToString(PixelFormat),
+            PixfmtToString(this.PixelFormat),
             "-vcodec",
             "rawvideo",
             "-"
         });
 
         var args = string.Join(' ', arglist);
-        log.Info("Generated args: " + args);
+        this.log.Info("Generated args: " + args);
 
-        proc = new Process();
-        proc.StartInfo.FileName = FFMpegPath;
-        proc.StartInfo.Arguments = args;
-        proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        proc.StartInfo.RedirectStandardOutput = true;
-        proc.StartInfo.RedirectStandardError = true;
-        proc.StartInfo.UseShellExecute = false;
-        proc.Start();
+        this.proc = new Process();
+        this.proc.StartInfo.FileName = this.FFMpegPath;
+        this.proc.StartInfo.Arguments = args;
+        this.proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        this.proc.StartInfo.RedirectStandardOutput = true;
+        this.proc.StartInfo.RedirectStandardError = true;
+        this.proc.StartInfo.UseShellExecute = false;
+        this.proc.Start();
 
-        var (width, height) = Size;
-        var bytesToRead = PixelChannels * width * height;
-        this.stdout = proc.StandardOutput.BaseStream;
-        this.stderr = proc.StandardError;
-        stdoutReader = new FFStdoutReader(this.stdout, bytesToRead);
+        var (width, height) = this.Size;
+        var bytesToRead = this.PixelChannels * width * height;
+        this.stdout = this.proc.StandardOutput.BaseStream;
+        this.stderr = this.proc.StandardError;
+        this.stdoutReader = new FFStdoutReader(this.stdout, bytesToRead);
 
-        Position = startIndex;
-        LastFrameRaw = ReadNextFrame();
+        this.Position = startIndex;
+        this.LastFrameRaw = this.ReadNextFrame();
     }
 
     public static string PixfmtToString(PixelFormat pixfmt)
@@ -200,27 +194,27 @@ internal class FFVideoFileSource : IVideoSource
 
     public void SkipFrames(long n = 1)
     {
-        if (stdoutReader != null)
+        if (this.stdoutReader != null)
         {
             for (long i = 0; i < n; i++)
             {
-                stdoutReader.ReadNextFrame();
+                this.stdoutReader.ReadNextFrame();
             }
-            Position += n;
+            this.Position += n;
         }
     }
 
     public long GetFrameNumber(double time)
     {
-        return (long)(FrameRate * time + 0.00001);
+        return (long)(this.FrameRate * time + 0.00001);
     }
 
     public Memory<byte> ReadNextFrame()
     {
-        var (width, height) = Size;
-        var bytesToRead = PixelChannels * width * height;
+        var (width, height) = this.Size;
+        var bytesToRead = this.PixelChannels * width * height;
 
-        var stdout = proc?.StandardOutput.BaseStream;
+        var stdout = this.proc?.StandardOutput.BaseStream;
 
         Memory<byte> result;
         if (stdout != null)
@@ -230,17 +224,17 @@ internal class FFVideoFileSource : IVideoSource
             var buffer = reader.ReadNextFrame();
             if (buffer is null)
             {
-                Trace.TraceWarning($"In file {FileName}, {bytesToRead} bytes wanted but not enough bytes read at frame index: {Position} (out of a total {FrameCount} frames), at time {Position / FrameRate:0.00}/{Duration:0.00}");
-                if (LastFrameRaw is null)
+                Trace.TraceWarning($"In file {this.FileName}, {bytesToRead} bytes wanted but not enough bytes read at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
+                if (this.LastFrameRaw is null)
                 {
-                    throw new IOException($"failed to read the first frame of video file {FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
+                    throw new IOException($"failed to read the first frame of video file {this.FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
                 }
-                result = LastFrameRaw.Value;
+                result = this.LastFrameRaw.Value;
             }
             else
             {
                 result = buffer.Value;
-                LastFrameRaw = buffer;
+                this.LastFrameRaw = buffer;
             }
         }
         else
@@ -248,35 +242,35 @@ internal class FFVideoFileSource : IVideoSource
             throw new NotSupportedException("Internal ffmpeg wrapper is not started.");
         }
 
-        Position += 1;
+        this.Position += 1;
         return result;
     }
 
     public Memory<byte>? MakeFrame(long frameIndex)
     {
         // Initialize proc if it is not open
-        if (proc is null)
+        if (this.proc is null)
         {
             Trace.TraceWarning("Internal process not detected, trying to initialize...");
-            Init();
-            return LastFrameRaw!.Value;
+            this.Init();
+            return this.LastFrameRaw!.Value;
         }
 
         // Use cache.
-        if (Position == frameIndex && LastFrameRaw != null)
+        if (this.Position == frameIndex && this.LastFrameRaw != null)
         {
-            return LastFrameRaw!.Value;
+            return this.LastFrameRaw!.Value;
         }
-        else if (frameIndex < Position || frameIndex > Position + 100)
+        else if (frameIndex < this.Position || frameIndex > this.Position + 100)
         {
             // seek to specified frame would takes too long.
-            Init(frameIndex);
-            return LastFrameRaw!.Value;
+            this.Init(frameIndex);
+            return this.LastFrameRaw!.Value;
         }
         else
         {
-            SkipFrames(frameIndex - Position - 1);
-            return ReadNextFrame();
+            this.SkipFrames(frameIndex - this.Position - 1);
+            return this.ReadNextFrame();
         }
     }
 
@@ -284,8 +278,8 @@ internal class FFVideoFileSource : IVideoSource
     {
         // + 1 so that it represents the frame position that it will be
         // after the frame is read. This makes the later comparisons easier.
-        var pos = GetFrameNumber(t) + 1;
-        return MakeFrame(pos);
+        var pos = this.GetFrameNumber(t) + 1;
+        return this.MakeFrame(pos);
     }
 
     public string? GetErrors()
@@ -295,24 +289,24 @@ internal class FFVideoFileSource : IVideoSource
 
     public void Close(bool cleanup = true)
     {
-        if (proc is not null)
+        if (this.proc is not null)
         {
-            if (!proc.HasExited)
+            if (!this.proc.HasExited)
             {
-                proc.Kill(true);
-                proc = null;
+                this.proc.Kill(true);
+                this.proc = null;
             }
         }
         if (cleanup)
         {
-            LastFrameRaw = null;
+            this.LastFrameRaw = null;
             GC.Collect();
         }
     }
 
     public void Dispose()
     {
-        Close(true);
+        this.Close(true);
         GC.SuppressFinalize(this);
     }
 }

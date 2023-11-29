@@ -1,10 +1,5 @@
 ﻿using MovieSharp.Composers.Audios;
 using NAudio.Wave;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Composers;
 
@@ -54,5 +49,15 @@ public static class IAudioClipExtensions
     public static IAudioClip Slice(this IAudioClip clip, double start, double end)
     {
         return new SlicedAudioClipProxy(clip, start, end);
+    }
+
+    public static IAudioClip RepeatTo(this IAudioClip clip, double newDuration)
+    {
+        return new RepeatAudioClipProxy(clip, newDuration);
+    }
+
+    public static IAudioClip RepeatTimes(this IAudioClip clip, int times)
+    {
+        return new RepeatAudioClipProxy(clip, times * clip.Duration);
     }
 }

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MovieSharp.Objects.EncodingParameters;
+﻿namespace MovieSharp.Objects.EncodingParameters;
 
 public record FFVideoParams(
     Coordinate? Size = null,
@@ -16,11 +10,13 @@ public record FFVideoParams(
     PixelFormat? SourcePixfmt = null,
     string TargetPixfmt = "yuv420p",
     string? WithCopyAudio = null,
-    string FFMPEGBinary = "ffmpeg"
+    string FFMPEGBinary = "ffmpeg",
+    RGBAColor? TransparentColor = null
 )
 {
     public Coordinate? Size { get; set; } = Size;
     public float? FrameRate { get; set; } = FrameRate;
     public string? WithCopyAudio { get; set; } = WithCopyAudio;
     public PixelFormat SourcePixfmt { get; set; } = SourcePixfmt ?? PixelFormat.RGBA32;
+    public RGBAColor TransparentColor { get; set; } = TransparentColor ?? RGBAColor.Black;
 }

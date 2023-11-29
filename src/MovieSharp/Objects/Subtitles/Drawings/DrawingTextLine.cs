@@ -1,9 +1,4 @@
 ﻿using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Objects.Subtitles.Drawings;
 
@@ -76,13 +71,13 @@ public class DrawingTextLine
     /// </returns>
     public IEnumerable<(DrawingTextRun, (float, float))> Enumerate()
     {
-        for (var i = 0; i < Contents.Count; i++)
+        for (var i = 0; i < this.Contents.Count; i++)
         {
             yield return (
-                Contents[i],
+                this.Contents[i],
                 (
-                    parent.Position.X + this.Left + Contents[i].Left,
-                    parent.Position.Y + this.Top
+                    this.parent.Position.X + this.Left + this.Contents[i].Left,
+                    this.parent.Position.Y + this.Top
                 )
            );
         }

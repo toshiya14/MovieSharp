@@ -1,9 +1,4 @@
 ﻿using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MovieSharp.Objects.Subtitles;
 
@@ -15,7 +10,8 @@ public class FontDefinition
     public RGBAColor Color { get; set; } = new RGBAColor(0, 0, 0, 0xff);
     public RGBAColor BorderColor { get; set; } = new RGBAColor(0xff, 0xff, 0xff, 0xff);
 
-    private SKPaint CreateBasePaint() {
+    private SKPaint CreateBasePaint()
+    {
         return new SKPaint()
         {
             IsAntialias = true,
@@ -26,7 +22,7 @@ public class FontDefinition
 
     public SKPaint CreateMeasurePaint()
     {
-        var paint = CreateBasePaint();
+        var paint = this.CreateBasePaint();
         paint.Color = this.Color.ToSKColor();
         paint.Style = SKPaintStyle.StrokeAndFill;
         paint.StrokeWidth = this.Size / 12f;
@@ -35,15 +31,16 @@ public class FontDefinition
 
     public SKPaint CreateStrokePaint()
     {
-        var paint = CreateBasePaint();
+        var paint = this.CreateBasePaint();
         paint.Color = this.BorderColor.ToSKColor();
         paint.IsStroke = true;
         paint.StrokeWidth = this.Size / 12f;
         return paint;
     }
 
-    public SKPaint CreateFillPaint() {
-        var paint = CreateBasePaint();
+    public SKPaint CreateFillPaint()
+    {
+        var paint = this.CreateBasePaint();
         paint.Color = this.Color.ToSKColor();
         paint.Style = SKPaintStyle.Fill;
         return paint;

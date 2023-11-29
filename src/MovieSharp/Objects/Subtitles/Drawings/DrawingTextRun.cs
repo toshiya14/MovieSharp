@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MovieSharp.Objects.Subtitles.Drawings;
+﻿namespace MovieSharp.Objects.Subtitles.Drawings;
 
 public class DrawingTextRun
 {
@@ -60,8 +54,9 @@ public class DrawingTextRun
         this.MeasuredHeight = measuredHeight;
     }
 
-    public int GetLineNumber() {
-        return parent.LineNumber;
+    public int GetLineNumber()
+    {
+        return this.parent.LineNumber;
     }
 
 }

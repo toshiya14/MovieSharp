@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace MovieSharp.Targets.Videos;
 
-namespace MovieSharp.Targets.Videos;
-
-public enum FFProgressState { 
+public enum FFProgressState
+{
     Continue,
     End
 }
