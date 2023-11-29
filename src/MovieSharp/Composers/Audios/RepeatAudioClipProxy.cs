@@ -13,10 +13,6 @@ internal class RepeatAudioClipProxy : IAudioClip
 
     public RepeatAudioClipProxy(IAudioClip baseclip, double duration)
     {
-        if (duration < baseclip.Duration)
-        {
-            throw new ArgumentException($"Could not create an repeated audio clip. The duration of the base clip: {baseclip.Duration}s, wanted: {duration}s");
-        }
         this.baseclip = baseclip;
         this.Duration = duration;
     }

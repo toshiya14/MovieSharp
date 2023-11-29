@@ -99,7 +99,8 @@ internal class Compose : ICompose
     {
         if (time > this.Duration)
         {
-            throw new MovieSharpException(MovieSharpErrorType.DrawingTimeGreaterThanDuration, $"Current drawing time: {time}, duration for this compose: {this.Duration}");
+            //throw new MovieSharpException(MovieSharpErrorType.DrawingTimeGreaterThanDuration, $"Current drawing time: {time}, duration for this compose: {this.Duration}");
+            return;
         }
         if (this.videos.Count > 0)
         {
@@ -235,13 +236,14 @@ internal class Compose : ICompose
         var start = this.RenderRange.Value.Left;
         var end = this.RenderRange.Value.Right;
 
+        // cut and keep the length same with compose itself.
         var slice = new OffsetSampleProvider(sampler)
         {
             SkipOver = TimeSpan.FromSeconds(start),
             Take = TimeSpan.FromSeconds(end - start)
         };
-
-        var wave = slice.ToWaveProvider();
+        var empty = new SilenceProvider(slice.WaveFormat).ToSampleProvider().Take(TimeSpan.FromSeconds(end - start));
+        var wave = new MixingSampleProvider(new[] { slice, empty }).ToWaveProvider();
 
         var outputPath = this.TempAudioFile ?? Path.GetTempFileName();
 

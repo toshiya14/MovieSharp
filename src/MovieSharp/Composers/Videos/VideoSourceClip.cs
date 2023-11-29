@@ -9,7 +9,7 @@ internal class VideoSourceClip : IVideoClip
     private IVideoSource FrameProvider { get; set; }
     public Coordinate Size => this.FrameProvider.Size;
     public double Duration => this.FrameProvider.Duration;
-    private readonly ILogger log = LogManager.GetCurrentClassLogger();
+    //private readonly ILogger log = LogManager.GetCurrentClassLogger();
 
     /// <summary>
     /// Create VideoClip from IVideoSource, use `0` as start, and IVideoSource.Duration as end.
@@ -41,7 +41,7 @@ internal class VideoSourceClip : IVideoClip
     /// <param name="offsetTime">The offset time from the start of this clip.</param>
     public void Draw(SKCanvas canvas, SKPaint? paint, double offsetTime)
     {
-        this.log.Debug($"Draw on {offsetTime}");
+        //this.log.Debug($"Draw on {offsetTime}");
         if (offsetTime > this.Duration || offsetTime < 0)
         {
             return;

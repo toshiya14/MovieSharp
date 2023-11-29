@@ -13,10 +13,6 @@ public class RepeatedVideoClipProxy : IVideoClip
 
     public RepeatedVideoClipProxy(IVideoClip baseclip, double duration)
     {
-        if (duration < baseclip.Duration)
-        {
-            throw new ArgumentException($"Could not create an repeated video clip. The duration of the base clip: {baseclip.Duration}s, wanted: {duration}s");
-        }
         this.baseclip = baseclip;
         this.Duration = duration;
     }

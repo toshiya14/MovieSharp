@@ -7,7 +7,7 @@ public enum MovieSharpErrorType
     RenderRangeOverflow,
     RenderRangeNotSet,
     ComposeNoClip,
-    DrawingTimeGreaterThanDuration,
+    ResourceNotFound
 }
 
 public class MovieSharpException : Exception

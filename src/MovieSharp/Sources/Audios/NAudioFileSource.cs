@@ -1,4 +1,5 @@
-﻿using NAudio.Vorbis;
+﻿using MovieSharp.Exceptions;
+using NAudio.Vorbis;
 using NAudio.Wave;
 
 namespace MovieSharp.Sources.Audios;
@@ -12,6 +13,9 @@ internal class NAudioFileSource : IAudioSource
     public NAudioFileSource(string filename)
     {
         var fi = new FileInfo(filename);
+        if (!fi.Exists) {
+            throw new MovieSharpException(MovieSharpErrorType.ResourceNotFound, $"Not found: {fi.FullName}");
+        }
         if (fi.Extension.ToLower() == ".ogg")
         {
             var source = new VorbisWaveReader(filename);

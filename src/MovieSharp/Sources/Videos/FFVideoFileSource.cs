@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using FFMpegCore;
+using MovieSharp.Exceptions;
 using MovieSharp.Objects;
 using MovieSharp.Tools;
 using NLog;
@@ -33,6 +34,12 @@ internal class FFVideoFileSource : IVideoSource
 
     public FFVideoFileSource(string filename, (int?, int?)? resolution = null)
     {
+        var fi = new FileInfo(filename);
+        if (!fi.Exists)
+        {
+            throw new MovieSharpException(MovieSharpErrorType.ResourceNotFound, $"Not found: {fi.FullName}");
+        }
+
         // initialize members;
         this.FileName = filename;
         this.proc = null;

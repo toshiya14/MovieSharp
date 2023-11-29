@@ -135,6 +135,19 @@ public class ComposerTest
         compose.Compose();
     }
 
+    [Test]
+    public void AutoPaddingAudioLength() {
+        using var compose = this.fac.NewCompose(1920, 1080, 30);
+        var summer = this.fac.LoadVideo(Path.Combine(this.folder, "assets", "summer.mp4"));
+        var bgm = this.fac.LoadAudio(Path.Combine(this.folder, "assets", "bgm.mp3"));
+        compose.PutVideo(0, summer.MakeClip());
+        compose.PutAudio(0, bgm.MakeClip());
+        compose.OutputFile = Path.Combine(this.folder, "auto-pad-audio.mp4");
+        compose.OnFrameEncoded += (sender, e) => this.log.Info($"Finish: {e.Frame} @ {e.Speed}x / {e.Fps}fps");
+        compose.UseMaxRenderRange();
+        compose.Compose();
+    }
+
 
     private void AddVideo(ICompose compose, bool isBlur)
     {
