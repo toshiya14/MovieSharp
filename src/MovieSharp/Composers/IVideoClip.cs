@@ -23,6 +23,11 @@ public static class IVideoClipExtensions
         return new CroppedVideoClipProxy(clip, croparea);
     }
 
+    public static IVideoClip FollowedBy(this IVideoClip clip, IVideoClip other)
+    {
+        return new ConcatenatedVideoClipProxy(clip, other);
+    }
+
     public static ITransformedVideoClip Transform(this IVideoClip clip)
     {
         if (clip is TransformedVideoClipProxy trans)
@@ -65,5 +70,18 @@ public static class IVideoClipExtensions
     public static IVideoClip RepeatTimes(this IVideoClip clip, int times)
     {
         return new RepeatedVideoClipProxy(clip, clip.Duration * times);
+    }
+
+    public static IVideoClip Concatenate(this IEnumerable<IVideoClip> videoClips)
+    {
+        IVideoClip clip = new ZeroVideoClip(0, 0);
+        if (videoClips == null || !videoClips.Any()) {
+            return clip;
+        }
+        foreach(var v in videoClips)
+        {
+            clip = clip.FollowedBy(v);
+        }
+        return clip;
     }
 }

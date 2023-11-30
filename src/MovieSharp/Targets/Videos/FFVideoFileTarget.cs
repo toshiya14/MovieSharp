@@ -32,6 +32,7 @@ internal class FFVideoFileTarget : IDisposable
             // below: input parameters.
             "-y",
             "-progress", "pipe:1",
+            "-threads", $"{this.parameters.Threads}",
             "-loglevel", "error",
             "-f", "rawvideo",
             "-vcodec", "rawvideo",
@@ -95,6 +96,7 @@ internal class FFVideoFileTarget : IDisposable
         this.proc.StartInfo.RedirectStandardOutput = true;
         this.proc.OutputDataReceived += this.StdoutReceived;
         this.proc.StartInfo.UseShellExecute = false;
+        this.proc.StartInfo.CreateNoWindow = true;
         this.proc.Start();
 
         this.stdin = this.proc.StandardInput;

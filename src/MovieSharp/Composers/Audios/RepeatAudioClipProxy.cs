@@ -17,9 +17,13 @@ internal class RepeatAudioClipProxy : IAudioClip
         this.Duration = duration;
     }
 
-    public ISampleProvider GetSampler()
+    public ISampleProvider? GetSampler()
     {
         var sampler = this.baseclip.GetSampler();
+        if(sampler == null) {
+            return null;
+        }
+
         var restTime = this.Duration - this.baseclip.Duration;
         while (restTime > 0)
         {

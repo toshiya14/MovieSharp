@@ -26,9 +26,14 @@ internal class SlicedAudioClipProxy : IAudioClip
         this.EndTime = end;
     }
 
-    public ISampleProvider GetSampler()
+    public ISampleProvider? GetSampler()
     {
         var s = this.baseclip.GetSampler();
+        if (s is null)
+        {
+            return null;
+        }
+
         return s.Skip(TimeSpan.FromSeconds(this.StartTime)).Take(TimeSpan.FromSeconds(this.Duration));
     }
     public void Dispose()

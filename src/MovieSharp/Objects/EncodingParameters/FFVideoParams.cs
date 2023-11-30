@@ -11,10 +11,12 @@ public record FFVideoParams(
     string TargetPixfmt = "yuv420p",
     string? WithCopyAudio = null,
     string FFMPEGBinary = "ffmpeg",
-    RGBAColor? TransparentColor = null
+    RGBAColor? TransparentColor = null,
+    int? Threads = null
 )
 {
     public Coordinate? Size { get; set; } = Size;
+    public int? Threads { get; set; } = Threads ?? Environment.ProcessorCount;
     public float? FrameRate { get; set; } = FrameRate;
     public string? WithCopyAudio { get; set; } = WithCopyAudio;
     public PixelFormat SourcePixfmt { get; set; } = SourcePixfmt ?? PixelFormat.RGBA32;

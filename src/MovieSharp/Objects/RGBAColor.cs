@@ -10,4 +10,9 @@ public record RGBAColor(byte Red, byte Green, byte Blue, byte Alpha)
     }
 
     public static RGBAColor Black => new(0x00, 0x00, 0x00, 0xff);
+
+    public override string ToString()
+    {
+        return $"rgba({this.Red:x2}, {this.Green:x2}, {this.Blue:x2}, {this.Alpha:x2})";
+    }
 }

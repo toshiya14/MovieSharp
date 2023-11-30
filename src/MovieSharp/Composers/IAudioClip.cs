@@ -11,7 +11,7 @@ public interface IAudioClip : IDisposable
 
     int SampleRate { get; }
 
-    ISampleProvider GetSampler();
+    ISampleProvider? GetSampler();
 }
 
 public static class IAudioClipExtensions
@@ -59,5 +59,10 @@ public static class IAudioClipExtensions
     public static IAudioClip RepeatTimes(this IAudioClip clip, int times)
     {
         return new RepeatAudioClipProxy(clip, times * clip.Duration);
+    }
+
+    public static IAudioClip FollowedBy(this IAudioClip clip, IAudioClip other)
+    {
+        return new ConcatenatedAudioClipProxy(clip, other);
     }
 }

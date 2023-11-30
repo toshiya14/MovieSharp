@@ -1,4 +1,6 @@
 using MovieSharp.Composers;
+using MovieSharp.Composers.Audios;
+using MovieSharp.Composers.Videos;
 using MovieSharp.Objects;
 using MovieSharp.Sources.Audios;
 using MovieSharp.Sources.Videos;
@@ -32,13 +34,26 @@ public class MediaFactory
 
     public IAudioSource LoadAudio(string filepath)
     {
-        var aud = new NAudioFileSource(filepath);
-        return aud;
+        return new NAudioFileSource(filepath);
     }
 
-    public ICompose NewCompose(int width, int height, double framerate, double duration = -1)
+    public IAudioSource LoadAudio(Stream stream)
     {
-        var com = new Compose(width, height, duration, framerate);
-        return com;
+        return new NAudioStreamSource(stream);
+    }
+
+    public ICompose NewCompose(int width, int height, double framerate, double duration = -1, CancellationTokenSource? cts = null)
+    {
+        return new Compose(width, height, duration, framerate, cts: cts);
+    }
+
+    public IAudioClip ZeroAudioClip(int channels, int sampleRate)
+    {
+        return new ZeroAudioClip(channels, sampleRate);
+    }
+
+    public IVideoClip ZeroVideoClip(int width, int height)
+    {
+        return new ZeroVideoClip(width, height);
     }
 }

@@ -19,7 +19,7 @@ public static class DrawVideoFrameExtensions
             }
             var mh = frame.Value.Pin();
             var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var bitmap = new SKBitmap(info);
+            using var bitmap = new SKBitmap(info);
             bitmap.InstallPixels(info, (IntPtr)mh.Pointer, bitmap.RowBytes, delegate { mh.Dispose(); }, cvs);
             if (paint is null)
             {

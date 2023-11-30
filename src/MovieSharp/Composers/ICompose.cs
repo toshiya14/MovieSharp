@@ -12,6 +12,11 @@ public interface ICompose : IAudioClip, IVideoClip
     double FrameRate { get; }
 
     /// <summary>
+    /// The duration.
+    /// </summary>
+    new double Duration { get; }
+
+    /// <summary>
     /// Set the region to render.
     /// If keep null, the whole compose would be used.(equals [0, compose.Duration])
     /// </summary>
@@ -33,8 +38,9 @@ public interface ICompose : IAudioClip, IVideoClip
 
     void PutVideo(double time, IVideoClip video);
     void PutAudio(double time, IAudioClip audio);
-    void ComposeVideo(FFVideoParams? p = null);
-    void ComposeAudio(NAudioParams? p = null);
-    void Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
+    Task ComposeVideo(FFVideoParams? p = null);
+    Task ComposeAudio(NAudioParams? p = null);
+    Task Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
+    void Cancel();
     void UseMaxRenderRange();
 }

@@ -21,9 +21,7 @@ public class OnFrameWrittenEventArgs
 
 internal class Compose : ICompose
 {
-#if DEBUG
     private ILogger log = LogManager.GetCurrentClassLogger();
-#endif
 
     private List<ComposeVideoTrack> videos = new();
 
@@ -32,6 +30,8 @@ internal class Compose : ICompose
     private double duration;
 
     private bool isAudioComposed = false;
+
+    private readonly CancellationTokenSource cts;
 
     public Coordinate Size { get; }
 
@@ -66,13 +66,14 @@ internal class Compose : ICompose
     /// <param name="frameRate">The frame rate for the video.</param>
     /// <param name="channels">The audio channels.</param>
     /// <param name="samplerate">The audio sample rate.</param>
-    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100)
+    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100, CancellationTokenSource? cts = null)
     {
         this.Size = new Coordinate(width, height);
         this.duration = duration;
         this.FrameRate = frameRate;
         this.Channels = channels;
         this.SampleRate = samplerate;
+        this.cts = cts ?? new CancellationTokenSource();
     }
 
 
@@ -151,7 +152,12 @@ internal class Compose : ICompose
         this.RenderRange = new TimeRange(0, this.Duration);
     }
 
-    public void ComposeVideo(FFVideoParams? p = null)
+    public void Cancel()
+    {
+        this.cts.Cancel();
+    }
+
+    public async Task ComposeVideo(FFVideoParams? p = null)
     {
         if (string.IsNullOrWhiteSpace(this.OutputFile))
         {
@@ -197,22 +203,32 @@ internal class Compose : ICompose
         };
         for (var i = startFrame; i <= endFrame; i++)
         {
-            var ellapsed = 0;
+            if (this.cts.IsCancellationRequested)
+            {
 #if DEBUG
-            var sw = Stopwatch.StartNew();
+                log.Info("Composing action has been cancelled.");
 #endif
-            var time = i * step;
-            using var cvs = new SKCanvas(bmp);
-            cvs.Clear(param.TransparentColor.ToSKColor());
-            this.Draw(cvs, null, time);
-            cvs.Flush();
-            writer.WriteFrame(bmp.Bytes.AsMemory());
+                break;
+            }
+            await Task.Run(() =>
+            {
+                var ellapsed = 0;
+#if DEBUG
+                var sw = Stopwatch.StartNew();
+#endif
+                var time = i * step;
+                using var cvs = new SKCanvas(bmp);
+                cvs.Clear(param.TransparentColor.ToSKColor());
+                this.Draw(cvs, null, time);
+                cvs.Flush();
+                writer.WriteFrame(bmp.Bytes.AsMemory());
 
 #if DEBUG
-            sw.Stop();
-            ellapsed = (int)sw.ElapsedMilliseconds;
+                sw.Stop();
+                ellapsed = (int)sw.ElapsedMilliseconds;
 #endif
-            this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
+                this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
+            }, this.cts.Token);
         }
 #if DEBUG
         this.log.Info("Finished. Inner Errors:");
@@ -220,7 +236,7 @@ internal class Compose : ICompose
 #endif
     }
 
-    public void ComposeAudio(NAudioParams? p = null)
+    public async Task ComposeAudio(NAudioParams? p = null)
     {
         if (this.RenderRange is null)
         {
@@ -249,38 +265,43 @@ internal class Compose : ICompose
 
         this.log.Debug($"Compose audio: {start} - {end}, path: {outputPath}");
 
-        switch (param.Codec.ToLower())
+        await Task.Run(() =>
         {
-            default:
-                throw new ArgumentException($"Unknown audio codec: {param.Codec}.");
+            switch (param.Codec.ToLower())
+            {
+                default:
+                    throw new ArgumentException($"Unknown audio codec: {param.Codec}.");
 
-            case "aac":
-                outputPath += ".aac";
-                MediaFoundationEncoder.EncodeToAac(wave, outputPath, param.Bitrate);
-                break;
+                case "aac":
+                    outputPath += ".aac";
+                    MediaFoundationEncoder.EncodeToAac(wave, outputPath, param.Bitrate);
+                    break;
 
-            case "mp3":
-                outputPath += ".mp3";
-                MediaFoundationEncoder.EncodeToMp3(wave, outputPath, param.Bitrate);
-                break;
+                case "mp3":
+                    outputPath += ".mp3";
+                    MediaFoundationEncoder.EncodeToMp3(wave, outputPath, param.Bitrate);
+                    break;
 
-            case "wav":
-                outputPath += ".wav";
-                WaveFileWriter.CreateWaveFile16(outputPath, wave.ToSampleProvider());
-                break;
-        }
+                case "wav":
+                    outputPath += ".wav";
+                    WaveFileWriter.CreateWaveFile16(outputPath, wave.ToSampleProvider());
+                    break;
+            }
+        }, this.cts.Token);
+
 
         this.TempAudioFile = outputPath;
         this.isAudioComposed = true;
     }
 
-    void ICompose.Compose(FFVideoParams? vp, NAudioParams? ap)
+    async Task ICompose.Compose(FFVideoParams? vp, NAudioParams? ap)
     {
+        this.cts.TryReset();
         if (this.RenderRange is null)
         {
             throw new MovieSharpException(MovieSharpErrorType.RenderRangeNotSet, "Compose.RenderRange should be set before calling any Compose() functions. Or use Compose.UseMaxRenderRange() to auto detect the range.");
         }
-        this.ComposeAudio(ap);
-        this.ComposeVideo(vp);
+        await this.ComposeAudio(ap);
+        await this.ComposeVideo(vp);
     }
 }

@@ -9,6 +9,7 @@ public class FontDefinition
     public bool Bold { get; set; }
     public RGBAColor Color { get; set; } = new RGBAColor(0, 0, 0, 0xff);
     public RGBAColor BorderColor { get; set; } = new RGBAColor(0xff, 0xff, 0xff, 0xff);
+    public float BorderSize { get; set; } = 0;
 
     private SKPaint CreateBasePaint()
     {
@@ -25,7 +26,7 @@ public class FontDefinition
         var paint = this.CreateBasePaint();
         paint.Color = this.Color.ToSKColor();
         paint.Style = SKPaintStyle.StrokeAndFill;
-        paint.StrokeWidth = this.Size / 12f;
+        paint.StrokeWidth = this.BorderSize;
         return paint;
     }
 
@@ -34,7 +35,7 @@ public class FontDefinition
         var paint = this.CreateBasePaint();
         paint.Color = this.BorderColor.ToSKColor();
         paint.IsStroke = true;
-        paint.StrokeWidth = this.Size / 12f;
+        paint.StrokeWidth = this.BorderSize;
         return paint;
     }
 

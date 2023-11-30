@@ -19,9 +19,15 @@ internal class ResampleAudioClipProxy : IAudioClip
         this.samplerate = samplerate;
     }
 
-    public ISampleProvider GetSampler()
+    public ISampleProvider? GetSampler()
     {
-        var rsp = new MediaFoundationResampler(this.baseclip.GetSampler().ToWaveProvider(), this.samplerate);
+        var sampler = this.baseclip.GetSampler();
+        if (sampler == null) {
+            return null;
+        }
+
+        var rsp = new MediaFoundationResampler(sampler.ToWaveProvider(), this.samplerate);
+
         return rsp.ToSampleProvider();
     }
 

@@ -26,7 +26,7 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
 
                     case "scale":
                         w *= p1;
-                        h *= p2!.Value;
+                        h *= p2 ?? p1;
                         break;
                 }
             }

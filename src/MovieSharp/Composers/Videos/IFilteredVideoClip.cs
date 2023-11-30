@@ -2,6 +2,7 @@
 
 public enum PresetFilter
 {
+    None,
     Retro,
     Sepia,
     Nostalgic,

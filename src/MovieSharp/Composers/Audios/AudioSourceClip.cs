@@ -16,7 +16,7 @@ internal class AudioSourceClip : IAudioClip
         this.source = source;
     }
 
-    public ISampleProvider GetSampler()
+    public ISampleProvider? GetSampler()
     {
         return this.source.GetSampler();
     }

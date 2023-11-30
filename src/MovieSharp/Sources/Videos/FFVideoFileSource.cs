@@ -159,6 +159,7 @@ internal class FFVideoFileSource : IVideoSource
         this.proc.StartInfo.RedirectStandardOutput = true;
         this.proc.StartInfo.RedirectStandardError = true;
         this.proc.StartInfo.UseShellExecute = false;
+        this.proc.StartInfo.CreateNoWindow = true;
         this.proc.Start();
 
         var (width, height) = this.Size;

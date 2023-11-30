@@ -20,9 +20,9 @@ internal class ChannelExtensionAudioClipProxy : IAudioClip
         this.channels = channels;
     }
 
-    public ISampleProvider GetSampler()
+    public ISampleProvider? GetSampler()
     {
-        var baseChannels = this.baseclip.GetSampler().WaveFormat.Channels;
+        var baseChannels = this.baseclip.Channels;
 
         if (baseChannels == this.channels)
         {
@@ -30,16 +30,22 @@ internal class ChannelExtensionAudioClipProxy : IAudioClip
             return this.baseclip.GetSampler();
         }
 
+        var sampler = this.baseclip.GetSampler();
+        if (sampler == null)
+        {
+            return null;
+        }
+
         switch (this.channels)
         {
             case 1:
                 // Stereo -> Mono
-                var mono = new StereoToMonoSampleProvider(this.baseclip.GetSampler());
+                var mono = new StereoToMonoSampleProvider(sampler);
                 return mono;
 
             case 2:
                 // Mono -> Stereo
-                var stereo = new MonoToStereoSampleProvider(this.baseclip.GetSampler());
+                var stereo = new MonoToStereoSampleProvider(sampler);
                 return stereo;
 
             default:

@@ -20,9 +20,15 @@ internal class GainedAudioClipProxy : IAudioClip
         this.gain = gain;
     }
 
-    public ISampleProvider GetSampler()
+    public ISampleProvider? GetSampler()
     {
-        var vsp = new VolumeSampleProvider(this.baseclip.GetSampler())
+        var sampler = this.baseclip.GetSampler();
+        if(sampler == null )
+        {
+            return sampler;
+        }
+
+        var vsp = new VolumeSampleProvider(sampler)
         {
             Volume = this.gain
         };

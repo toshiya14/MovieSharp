@@ -14,4 +14,9 @@ public class Anchor
     public static Anchor LeftBottom => new Anchor() { X = 1f, Y = 0 };
     public static Anchor Bottom => new Anchor() { X = 1f, Y = 0.5f };
     public static Anchor RightBottom => new Anchor() { X = 1f, Y = 1f };
+
+    public override string ToString()
+    {
+        return $"({this.X:0.00}, {this.Y:0.00})";
+    }
 }
