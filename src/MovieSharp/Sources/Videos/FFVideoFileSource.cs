@@ -1,9 +1,12 @@
 ﻿using System.Diagnostics;
+using System.Xml.Linq;
 using FFMpegCore;
+using MovieSharp.Debugs.Benchmarks;
 using MovieSharp.Exceptions;
 using MovieSharp.Objects;
 using MovieSharp.Tools;
 using NLog;
+using SkiaSharp;
 
 // This is a port from:
 // https://github.com/Zulko/moviepy/blob/9ebabda20a27780101f5c6c832ed398d28377726/moviepy/video/io/ffmpeg_reader.py
@@ -17,20 +20,34 @@ internal class FFVideoFileSource : IVideoSource
     private Stream? stdout;
     private StreamReader? stderr;
     private FFStdoutReader? stdoutReader;
+    private (int?, int?)? targetResolution = null;
+    private SKImageInfo imageInfo;
+    private int bytesPerFrame;
+
+    #region Debugs
+#if DEBUG
+    private readonly PerformanceMeasurer measurer = PerformanceMeasurer.GetCurrentClassMeasurer();
+#endif
+    #endregion
 
     public string FileName { get; }
     public double FrameRate { get; private set; }
     public double Duration { get; private set; }
     public Coordinate Size { get; private set; }
-    public long FrameCount { get; private set; }
-    public long Position { get; private set; }
-    public Memory<byte>? LastFrameRaw { get; private set; }
+    public int FrameCount { get; private set; }
+    public int Position { get; private set; }
+    public SKImage? LastFrame { get; private set; }
     public int PixelChannels { get; private set; }
     public PixelFormat PixelFormat { get; set; }
     public string ResizeAlgo { get; set; } = "bicubic";
     public IMediaAnalysis? Infos { get; private set; }
     public string FFMpegPath { get; set; } = "ffmpeg";
-    private (int?, int?)? targetResolution = null;
+
+    /// <summary>
+    /// Use PATH if set to empty.
+    /// </summary>
+    public string FFMpegBinFolder { get; set; } = string.Empty;
+
 
     public FFVideoFileSource(string filename, (int?, int?)? resolution = null)
     {
@@ -56,8 +73,10 @@ internal class FFVideoFileSource : IVideoSource
     /// it pre-reads the first frame).
     /// </summary>
     /// <param name="startTime"></param>
-    public void Init(long startIndex = 0)
+    public void Init(int startIndex = 0)
     {
+        using var _ = this.measurer.UseMeasurer("init");
+
         this.Infos = FFProbe.Analyse(this.FileName);
 
         if (this.Infos.VideoStreams.Count < 1)
@@ -104,8 +123,10 @@ internal class FFVideoFileSource : IVideoSource
         }
 
         this.Duration = vidstream.Duration.TotalSeconds;
-        this.FrameCount = (long)(vidstream.FrameRate * vidstream.Duration.TotalSeconds);
+        this.FrameCount = (int)(vidstream.FrameRate * vidstream.Duration.TotalSeconds);
         this.PixelChannels = this.PixelFormat == PixelFormat.RGB24 || this.PixelFormat == PixelFormat.BGR24 ? 3 : 4;
+        this.imageInfo = new SKImageInfo(this.Size.X, this.Size.Y, this.PixelFormat.GetColorType(), SKAlphaType.Unpremul);
+        this.bytesPerFrame = this.Size.X * this.Size.Y * this.PixelChannels;
 
         // If there is an running or suspending task, terminate it.
         this.Close(false);
@@ -169,7 +190,7 @@ internal class FFVideoFileSource : IVideoSource
         this.stdoutReader = new FFStdoutReader(this.stdout, bytesToRead);
 
         this.Position = startIndex;
-        this.LastFrameRaw = this.ReadNextFrame();
+        this.LastFrame = this.ReadNextFrame();
     }
 
     public static string PixfmtToString(PixelFormat pixfmt)
@@ -200,49 +221,57 @@ internal class FFVideoFileSource : IVideoSource
         }
     }
 
-    public void SkipFrames(long n = 1)
+    public void SkipFrames(int n = 1)
     {
         if (this.stdoutReader != null)
         {
             for (long i = 0; i < n; i++)
             {
-                this.stdoutReader.ReadNextFrame();
+                this.stdoutReader.ReadNextFrame().Wait();
             }
             this.Position += n;
         }
     }
 
-    public long GetFrameNumber(double time)
+    public int GetFrameNumber(double time)
     {
-        return (long)(this.FrameRate * time + 0.00001);
+        return (int)(this.FrameRate * time + 0.00001);
     }
 
-    public Memory<byte> ReadNextFrame()
+    public unsafe SKImage ReadNextFrame()
     {
+        using var _ = this.measurer.UseMeasurer("read-frame");
+
         var (width, height) = this.Size;
         var bytesToRead = this.PixelChannels * width * height;
 
         var stdout = this.proc?.StandardOutput.BaseStream;
 
-        Memory<byte> result;
+        SKImage result;
         if (stdout != null)
         {
-            var reader = new FFStdoutReader(stdout, bytesToRead);
-
-            var buffer = reader.ReadNextFrame();
+            var buffer = this.stdoutReader?.ReadNextFrame().Result;
             if (buffer is null)
             {
                 Trace.TraceWarning($"In file {this.FileName}, {bytesToRead} bytes wanted but not enough bytes read at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
-                if (this.LastFrameRaw is null)
+                if (this.LastFrame is null)
                 {
                     throw new IOException($"failed to read the first frame of video file {this.FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
                 }
-                result = this.LastFrameRaw.Value;
+                result = this.LastFrame;
             }
             else
             {
-                result = buffer.Value;
-                this.LastFrameRaw = buffer;
+                // install pixels
+
+                if (buffer.Value.Length != this.bytesPerFrame || this.PixelFormat != PixelFormat.RGBA32)
+                {
+                    throw new ArgumentException($"MakeFrameByTime returns {buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct. Pixel format in VideoSource is {this.PixelFormat}, wanted: rgba/rgba8888/rgba32.");
+                }
+
+                var mh = buffer.Value.Pin();
+                var img = SKImage.FromPixelCopy(this.imageInfo, buffer.Value.Span);
+                result = img;
             }
         }
         else
@@ -254,26 +283,28 @@ internal class FFVideoFileSource : IVideoSource
         return result;
     }
 
-    public Memory<byte>? MakeFrame(long frameIndex)
+    public SKImage? MakeFrame(int frameIndex)
     {
+        using var _ = this.measurer.UseMeasurer("make-frame");
+
         // Initialize proc if it is not open
         if (this.proc is null)
         {
             Trace.TraceWarning("Internal process not detected, trying to initialize...");
             this.Init();
-            return this.LastFrameRaw!.Value;
+            return this.LastFrame;
         }
 
         // Use cache.
-        if (this.Position == frameIndex && this.LastFrameRaw != null)
+        if (this.Position == frameIndex && this.LastFrame != null)
         {
-            return this.LastFrameRaw!.Value;
+            return this.LastFrame;
         }
         else if (frameIndex < this.Position || frameIndex > this.Position + 100)
         {
             // seek to specified frame would takes too long.
             this.Init(frameIndex);
-            return this.LastFrameRaw!.Value;
+            return this.LastFrame;
         }
         else
         {
@@ -282,7 +313,7 @@ internal class FFVideoFileSource : IVideoSource
         }
     }
 
-    public Memory<byte>? MakeFrameByTime(double t)
+    public SKImage? MakeFrameByTime(double t)
     {
         // + 1 so that it represents the frame position that it will be
         // after the frame is read. This makes the later comparisons easier.
@@ -307,7 +338,7 @@ internal class FFVideoFileSource : IVideoSource
         }
         if (cleanup)
         {
-            this.LastFrameRaw = null;
+            this.LastFrame = null;
             GC.Collect();
         }
     }

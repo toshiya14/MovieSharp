@@ -1,4 +1,6 @@
-﻿using MovieSharp.Objects;
+﻿using MovieSharp.Debugs.Benchmarks;
+using MovieSharp.Objects;
+using MovieSharp.Skia.Surfaces;
 using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
@@ -12,6 +14,8 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 
     public double Duration => this.baseclip.Duration;
 
+    private ISurfaceProxy surface;
+
     public FilteredVideoClipProxy(IVideoClip baseclip)
     {
         this.baseclip = baseclip;
@@ -19,11 +23,13 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
         {
             IsAntialias = true
         };
+        this.surface = new RasterSurface(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
     }
 
     public void Dispose()
     {
         this.baseclip.Dispose();
+        this.surface.Dispose();
     }
 
     public IVideoClip ToClip()
@@ -33,13 +39,19 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
+        var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
+        using var _ = pm.UseMeasurer("filtered-drawing");
         var (w, h) = this.baseclip.Size;
-        using var bmp = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        using var cvs = new SKCanvas(bmp);
-        this.baseclip.Draw(cvs, this.paint, time);
-        cvs.Flush();
 
-        canvas.DrawBitmap(bmp, new SKPoint(0, 0));
+
+        //using var bmp = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        //using var cvs = new SKCanvas(bmp);
+        this.surface.Canvas.Clear();
+        this.baseclip.Draw(this.surface.Canvas, this.paint, time);
+        this.surface.Canvas.Flush();
+        using var img = this.surface.Snapshot();
+
+        canvas.DrawImage(img, new SKPoint(0, 0));
     }
 
     public IFilteredVideoClip AddBlur(float sigmaX, float sigmaY)

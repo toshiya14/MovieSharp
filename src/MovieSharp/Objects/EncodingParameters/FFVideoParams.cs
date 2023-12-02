@@ -10,7 +10,6 @@ public record FFVideoParams(
     PixelFormat? SourcePixfmt = null,
     string TargetPixfmt = "yuv420p",
     string? WithCopyAudio = null,
-    string FFMPEGBinary = "ffmpeg",
     RGBAColor? TransparentColor = null,
     int? Threads = null
 )

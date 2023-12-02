@@ -1,6 +1,8 @@
-﻿using MovieSharp.Objects;
+﻿using MovieSharp.Debugs.Benchmarks;
+using MovieSharp.Objects;
 using MovieSharp.Objects.Subtitles;
 using MovieSharp.Objects.Subtitles.Drawings;
+using MovieSharp.Skia.Surfaces;
 using MovieSharp.Tools;
 using SkiaSharp;
 
@@ -10,8 +12,10 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 {
     private List<TimelineItem> items;
     private DrawingTextBox? lastTextBox;
+    private ISurfaceProxy surface;
+    private PerformanceMeasurer pm = PerformanceMeasurer.GetCurrentClassMeasurer();
 
-    public long FrameCount => (long)(this.Duration * this.FrameRate);
+    public int FrameCount => (int)(this.Duration * this.FrameRate);
 
     public double FrameRate { get; }
 
@@ -30,6 +34,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 
         var (w, h) = this.Size;
         this.ImageInfo = new SKImageInfo(w, h, this.PixelFormat.GetColorType(), SKAlphaType.Unpremul);
+        this.surface = new RasterSurface(this.ImageInfo);
     }
 
     public void From(SubtitleTimelineBuilder stb)
@@ -42,15 +47,17 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         return this;
     }
 
-    public Memory<byte>? MakeFrame(long frameIndex)
+    public SKImage? MakeFrame(int frameIndex)
     {
         return this.MakeFrameByTime(frameIndex * this.FrameRate);
     }
 
-    public Memory<byte>? MakeFrameByTime(double t)
+    public SKImage? MakeFrameByTime(double t)
     {
-        using var bitmap = new SKBitmap(this.ImageInfo);
-        using var cvs = new SKCanvas(bitmap);
+        using var _ = this.pm.UseMeasurer("make-subtitle");
+
+        var cvs = this.surface.Canvas;
+        cvs.Clear();
 
         foreach (var part in this.items.Where(x => x.Start <= t && x.End >= t))
         {
@@ -58,8 +65,8 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         }
 
         cvs.Flush();
-        var buffer = bitmap.Bytes;
-        return buffer.AsMemory();
+        var img = this.surface.Snapshot();
+        return img;
     }
 
     private static int FindWrap(SKPaint measurePaint, string text, float limit)
@@ -68,7 +75,10 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         for (var i = 1; i < text.Length; i++)
         {
             var trueWidth = measurePaint.MeasureText(text[..i], ref bound);
-            if (trueWidth > limit) return i - 1;
+            if (trueWidth > limit)
+            {
+                return i - 1;
+            }
         }
         return text.Length - 1;
     }
@@ -194,6 +204,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 
     public void Dispose()
     {
+        this.surface.Dispose();
         GC.SuppressFinalize(this);
     }
 

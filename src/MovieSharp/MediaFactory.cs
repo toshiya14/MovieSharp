@@ -9,13 +9,18 @@ namespace MovieSharp;
 
 public class MediaFactory
 {
-    public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, PixelFormat? pixfmt = null, string resizeAlgo = "bicubic", string ffmpeg = "ffmpeg")
+    public string FFMPEGBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffmpeg" : Path.Combine(this.FFMPEGFolder, "ffmpeg");
+    public string FFMPEGFolder { get; set; } = string.Empty;
+
+
+    public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, PixelFormat? pixfmt = null, string resizeAlgo = "bicubic")
     {
         var vid = new FFVideoFileSource(filepath, targetResolution)
         {
             PixelFormat = pixfmt ?? PixelFormat.RGBA32,
             ResizeAlgo = resizeAlgo,
-            FFMpegPath = ffmpeg
+            FFMpegPath = this.FFMPEGBinary,
+            FFMpegBinFolder = this.FFMPEGFolder,
         };
         vid.Init();
         return vid;
@@ -44,7 +49,7 @@ public class MediaFactory
 
     public ICompose NewCompose(int width, int height, double framerate, double duration = -1, CancellationTokenSource? cts = null)
     {
-        return new Compose(width, height, duration, framerate, cts: cts);
+        return new Compose(width, height, duration, framerate, ffmpegBin: this.FFMPEGBinary, cts: cts);
     }
 
     public IAudioClip ZeroAudioClip(int channels, int sampleRate)

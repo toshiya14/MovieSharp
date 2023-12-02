@@ -5,7 +5,7 @@ namespace MovieSharp.Tools;
 internal class FFStdoutReader
 {
     private readonly Stream stdout;
-    private readonly ILogger log = LogManager.GetCurrentClassLogger();
+    //private readonly ILogger log = LogManager.GetCurrentClassLogger();
     private readonly int frameLength;
 
     public FFStdoutReader(Stream stdout, int frameLength)
@@ -14,19 +14,26 @@ internal class FFStdoutReader
         this.frameLength = frameLength;
     }
 
-    public Memory<byte>? ReadNextFrame()
+    public async Task<Memory<byte>?> ReadNextFrame()
     {
         var offset = 0;
         //var sw = Stopwatch.StartNew();
-        var buffer = new byte[this.frameLength];
+        //var buffer = new byte[this.frameLength];
+        var buffer = new Memory<byte>(new byte[this.frameLength]);
 
         while (offset < this.frameLength)
         {
-            var r = this.stdout.Read(buffer, offset, this.frameLength - offset);
+            var r = await this.stdout.ReadAsync(buffer);
             if (r <= 0)
             {
-                if (offset == 0) return null;
-                else break;
+                if (offset == 0)
+                {
+                    return null;
+                }
+                else
+                {
+                    break;
+                }
             }
             offset += r;
         }
@@ -39,6 +46,6 @@ internal class FFStdoutReader
         //sw.Stop();
         //log.Debug($"ReadNextFrame Finished: {sw.Elapsed}");
 
-        return buffer.AsMemory();
+        return buffer;
     }
 }

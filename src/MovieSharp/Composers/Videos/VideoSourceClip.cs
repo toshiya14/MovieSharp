@@ -1,5 +1,6 @@
 ﻿using MovieSharp;
 using MovieSharp.Composers;
+using MovieSharp.Debugs.Benchmarks;
 using MovieSharp.Objects;
 using MovieSharp.Skia;
 using NLog;
@@ -21,20 +22,6 @@ internal class VideoSourceClip : IVideoClip
     }
 
     /// <summary>
-    /// Get frame from the video source, the time would be mapped.
-    /// </summary>
-    /// <param name="offsetTime">The offset time from the start of this clip.</param>
-    public Memory<byte>? GetFrame(double offsetTime)
-    {
-        if (offsetTime > this.Duration || offsetTime < 0)
-        {
-            return null;
-        }
-
-        return this.FrameProvider.MakeFrameByTime(offsetTime);
-    }
-
-    /// <summary>
     /// Render the specified frame into the canvas.
     /// </summary>
     /// <param name="canvas">the skia canvas.</param>
@@ -46,7 +33,12 @@ internal class VideoSourceClip : IVideoClip
         {
             return;
         }
-        canvas.DrawVideoFrame(paint, this.FrameProvider, offsetTime);
+
+        var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
+        using var _ = pm.UseMeasurer("videosrc-drawing");
+        using var img = this.FrameProvider.MakeFrameByTime(offsetTime);
+
+        canvas.DrawImage(img, 0, 0, paint);
     }
 
     public void Dispose()

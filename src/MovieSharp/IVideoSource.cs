@@ -1,14 +1,15 @@
 ﻿using MovieSharp.Objects;
+using SkiaSharp;
 
 namespace MovieSharp;
 
 public interface IVideoSource : IDisposable
 {
-    long FrameCount { get; }
+    int FrameCount { get; }
     double FrameRate { get; }
     double Duration { get; }
     Coordinate Size { get; }
     PixelFormat PixelFormat { get; }
-    Memory<byte>? MakeFrameByTime(double t);
-    Memory<byte>? MakeFrame(long frameIndex);
+    SKImage? MakeFrameByTime(double t);
+    SKImage? MakeFrame(int frameIndex);
 }

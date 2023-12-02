@@ -1,9 +1,11 @@
 ﻿
 using System.Diagnostics;
 using MovieSharp.Composers.Timelines;
+using MovieSharp.Debugs.Benchmarks;
 using MovieSharp.Exceptions;
 using MovieSharp.Objects;
 using MovieSharp.Objects.EncodingParameters;
+using MovieSharp.Skia.Surfaces;
 using MovieSharp.Targets.Videos;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -22,16 +24,12 @@ public class OnFrameWrittenEventArgs
 internal class Compose : ICompose
 {
     private ILogger log = LogManager.GetCurrentClassLogger();
-
     private List<ComposeVideoTrack> videos = new();
-
     private List<ComposeAudioTrack> audios = new();
-
     private double duration;
-
     private bool isAudioComposed = false;
-
     private readonly CancellationTokenSource cts;
+    private ISurfaceProxy surface;
 
     public Coordinate Size { get; }
 
@@ -56,6 +54,7 @@ internal class Compose : ICompose
     public string? TempAudioFile { get; set; }
     public int Channels { get; }
     public int SampleRate { get; }
+    public string FFMPEGBinary { get; }
 
     /// <summary>
     /// Create a compose.
@@ -66,14 +65,16 @@ internal class Compose : ICompose
     /// <param name="frameRate">The frame rate for the video.</param>
     /// <param name="channels">The audio channels.</param>
     /// <param name="samplerate">The audio sample rate.</param>
-    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100, CancellationTokenSource? cts = null)
+    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100, string ffmpegBin = "ffmpeg", CancellationTokenSource? cts = null)
     {
         this.Size = new Coordinate(width, height);
         this.duration = duration;
         this.FrameRate = frameRate;
         this.Channels = channels;
         this.SampleRate = samplerate;
+        this.FFMPEGBinary = ffmpegBin;
         this.cts = cts ?? new CancellationTokenSource();
+        this.surface = new RasterSurface(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
     }
 
 
@@ -106,15 +107,16 @@ internal class Compose : ICompose
         if (this.videos.Count > 0)
         {
             var (w, h) = this.Size;
-            using var bmp = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            using var cvs = new SKCanvas(bmp);
+            this.surface.Canvas.Clear();
             foreach (var layout in this.videos.Where(x => x.Time < time))
             {
                 var offsetTime = time - layout.Time;
-                layout.Clip.Draw(cvs, paint, offsetTime);
+                layout.Clip.Draw(this.surface.Canvas, paint, offsetTime);
             }
-            cvs.Flush();
-            canvas.DrawBitmap(bmp, 0, 0);
+            this.surface.Canvas.Flush();
+
+            using var img = this.surface.Snapshot();
+            canvas.DrawImage(img, 0, 0);
         }
     }
 
@@ -144,6 +146,7 @@ internal class Compose : ICompose
         {
             a.Clip.Dispose();
         }
+        this.surface.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -159,6 +162,8 @@ internal class Compose : ICompose
 
     public async Task ComposeVideo(FFVideoParams? p = null)
     {
+        var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
+
         if (string.IsNullOrWhiteSpace(this.OutputFile))
         {
             throw new ArgumentException("`OutputFile` should be set before call Compose or ComposeVideo.");
@@ -192,10 +197,11 @@ internal class Compose : ICompose
         var startFrame = (long)(start * this.FrameRate);
         var endFrame = (long)(end * this.FrameRate);
 
-        using var writer = new FFVideoFileTarget(param, this.OutputFile, param.FFMPEGBinary);
-        using var bmp = new SKBitmap(param.Size.X, param.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        using var writer = new FFVideoFileTarget(param, this.OutputFile, this.FFMPEGBinary);
+
         var step = 1.0 / this.FrameRate;
 
+        var surface = new RasterSurface(new SKImageInfo(param.Size.X, param.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
         writer.Init();
         writer.OnProgress += (sender, e) =>
         {
@@ -212,27 +218,33 @@ internal class Compose : ICompose
             }
             await Task.Run(() =>
             {
+                using var _ = pm.UseMeasurer("compose-frame");
                 var ellapsed = 0;
-#if DEBUG
-                var sw = Stopwatch.StartNew();
-#endif
+
                 var time = i * step;
-                using var cvs = new SKCanvas(bmp);
-                cvs.Clear(param.TransparentColor.ToSKColor());
-                this.Draw(cvs, null, time);
-                cvs.Flush();
+
+                surface.Canvas.Clear(param.TransparentColor.ToSKColor());
+                this.Draw(surface.Canvas, null, time);
+                surface.Canvas.Flush();
+
+                using var img = surface.Snapshot();
+                using var bmp = SKBitmap.FromImage(img);
                 writer.WriteFrame(bmp.Bytes.AsMemory());
 
-#if DEBUG
-                sw.Stop();
-                ellapsed = (int)sw.ElapsedMilliseconds;
-#endif
                 this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
             }, this.cts.Token);
         }
 #if DEBUG
-        this.log.Info("Finished. Inner Errors:");
-        this.log.Warn(writer.GetErrors());
+        var error = writer.GetErrors();
+        if (string.IsNullOrWhiteSpace(error))
+        {
+            this.log.Info("Finished normally.");
+        }
+        else
+        {
+            this.log.Info("Finished. Inner Errors:\n");
+            this.log.Warn(error);
+        }
 #endif
     }
 
