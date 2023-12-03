@@ -47,12 +47,12 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         return this;
     }
 
-    public SKImage? MakeFrame(int frameIndex)
+    public SKBitmap? MakeFrame(int frameIndex)
     {
         return this.MakeFrameByTime(frameIndex * this.FrameRate);
     }
 
-    public SKImage? MakeFrameByTime(double t)
+    public SKBitmap? MakeFrameByTime(double t)
     {
         using var _ = this.pm.UseMeasurer("make-subtitle");
 
@@ -66,7 +66,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 
         cvs.Flush();
         var img = this.surface.Snapshot();
-        return img;
+        return SKBitmap.FromImage(img);
     }
 
     private static int FindWrap(SKPaint measurePaint, string text, float limit)

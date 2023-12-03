@@ -7,7 +7,6 @@ public record FFVideoParams(
     string Codec = "libx264",
     string? Bitrate = null,
     int? CRF = 21,
-    PixelFormat? SourcePixfmt = null,
     string TargetPixfmt = "yuv420p",
     string? WithCopyAudio = null,
     RGBAColor? TransparentColor = null,
@@ -18,6 +17,5 @@ public record FFVideoParams(
     public int? Threads { get; set; } = Threads ?? Environment.ProcessorCount;
     public float? FrameRate { get; set; } = FrameRate;
     public string? WithCopyAudio { get; set; } = WithCopyAudio;
-    public PixelFormat SourcePixfmt { get; set; } = SourcePixfmt ?? PixelFormat.RGBA32;
     public RGBAColor TransparentColor { get; set; } = TransparentColor ?? RGBAColor.Black;
 }

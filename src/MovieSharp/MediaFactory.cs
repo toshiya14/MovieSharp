@@ -13,11 +13,10 @@ public class MediaFactory
     public string FFMPEGFolder { get; set; } = string.Empty;
 
 
-    public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, PixelFormat? pixfmt = null, string resizeAlgo = "bicubic")
+    public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, string resizeAlgo = "bicubic")
     {
         var vid = new FFVideoFileSource(filepath, targetResolution)
         {
-            PixelFormat = pixfmt ?? PixelFormat.RGBA32,
             ResizeAlgo = resizeAlgo,
             FFMpegPath = this.FFMPEGBinary,
             FFMpegBinFolder = this.FFMPEGFolder,
@@ -47,9 +46,9 @@ public class MediaFactory
         return new NAudioStreamSource(stream);
     }
 
-    public ICompose NewCompose(int width, int height, double framerate, double duration = -1, CancellationTokenSource? cts = null)
+    public ICompose NewCompose(int width, int height, double framerate, double duration = -1)
     {
-        return new Compose(width, height, duration, framerate, ffmpegBin: this.FFMPEGBinary, cts: cts);
+        return new Compose(width, height, duration, framerate, ffmpegBin: this.FFMPEGBinary);
     }
 
     public IAudioClip ZeroAudioClip(int channels, int sampleRate)

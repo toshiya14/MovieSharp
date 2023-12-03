@@ -36,9 +36,9 @@ internal class VideoSourceClip : IVideoClip
 
         var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
         using var _ = pm.UseMeasurer("videosrc-drawing");
-        using var img = this.FrameProvider.MakeFrameByTime(offsetTime);
+        using var bmp = this.FrameProvider.MakeFrameByTime(offsetTime);
 
-        canvas.DrawImage(img, 0, 0, paint);
+        canvas.DrawBitmap(bmp, 0, 0, paint);
     }
 
     public void Dispose()

@@ -16,12 +16,10 @@ internal class DummyVideoSource : IVideoSource
 
     public PixelFormat PixelFormat { get; }
 
-    private readonly RGBAColor? background;
-    private SKImage? snapshot;
+    private SKBitmap? snapshot;
 
     public DummyVideoSource(RGBAColor? background, PixelFormat pixfmt, (int, int) size, double frameRate, double duration)
     {
-        this.background = background;
         this.PixelFormat = pixfmt;
         this.Size = new Coordinate(size);
         this.FrameRate = frameRate;
@@ -30,21 +28,17 @@ internal class DummyVideoSource : IVideoSource
         if (background is not null)
         {
             surface.Canvas.Clear(background.ToSKColor());
-            this.snapshot = surface.Snapshot();
+            using var img = surface.Snapshot();
+            this.snapshot = SKBitmap.FromImage(img);
         }
     }
 
-    private SKImage? MakeFrame()
+    public SKBitmap? MakeFrame(int frameIndex)
     {
         return this.snapshot;
     }
 
-    public SKImage? MakeFrame(int frameIndex)
-    {
-        return this.snapshot;
-    }
-
-    public SKImage? MakeFrameByTime(double t)
+    public SKBitmap? MakeFrameByTime(double t)
     {
         return this.snapshot;
     }

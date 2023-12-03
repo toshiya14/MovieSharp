@@ -26,7 +26,7 @@ internal class FFVideoFileSource : IVideoSource
 
     #region Debugs
 #if DEBUG
-    private readonly PerformanceMeasurer measurer = PerformanceMeasurer.GetCurrentClassMeasurer();
+    private readonly PerformanceMeasurer pm = PerformanceMeasurer.GetCurrentClassMeasurer();
 #endif
     #endregion
 
@@ -36,9 +36,9 @@ internal class FFVideoFileSource : IVideoSource
     public Coordinate Size { get; private set; }
     public int FrameCount { get; private set; }
     public int Position { get; private set; }
-    public SKImage? LastFrame { get; private set; }
-    public int PixelChannels { get; private set; }
-    public PixelFormat PixelFormat { get; set; }
+    public Memory<byte>? LastFrame { get; private set; }
+    public int PixelChannels { get; private set; } = 4;
+    public PixelFormat PixelFormat { get; } = PixelFormat.RGBA32;
     public string ResizeAlgo { get; set; } = "bicubic";
     public IMediaAnalysis? Infos { get; private set; }
     public string FFMpegPath { get; set; } = "ffmpeg";
@@ -62,7 +62,6 @@ internal class FFVideoFileSource : IVideoSource
         this.proc = null;
         this.targetResolution = resolution;
         this.Size = new Coordinate(0, 0);
-        this.PixelFormat = PixelFormat.RGBA32;
 
         // TODO: temporary not support rotate.
     }
@@ -75,7 +74,7 @@ internal class FFVideoFileSource : IVideoSource
     /// <param name="startTime"></param>
     public void Init(int startIndex = 0)
     {
-        using var _ = this.measurer.UseMeasurer("init");
+        using var _ = this.pm.UseMeasurer("init");
 
         this.Infos = FFProbe.Analyse(this.FileName);
 
@@ -124,8 +123,7 @@ internal class FFVideoFileSource : IVideoSource
 
         this.Duration = vidstream.Duration.TotalSeconds;
         this.FrameCount = (int)(vidstream.FrameRate * vidstream.Duration.TotalSeconds);
-        this.PixelChannels = this.PixelFormat == PixelFormat.RGB24 || this.PixelFormat == PixelFormat.BGR24 ? 3 : 4;
-        this.imageInfo = new SKImageInfo(this.Size.X, this.Size.Y, this.PixelFormat.GetColorType(), SKAlphaType.Unpremul);
+        this.imageInfo = new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         this.bytesPerFrame = this.Size.X * this.Size.Y * this.PixelChannels;
 
         // If there is an running or suspending task, terminate it.
@@ -155,18 +153,12 @@ internal class FFVideoFileSource : IVideoSource
         }
 
         arglist.AddRange(new string[] {
-            "-loglevel",
-            "error",
-            "-f",
-            "image2pipe",
-            "-vf",
-            $"scale={this.Size.X}:{this.Size.Y}",
-            "-sws_flags",
-            this.ResizeAlgo,
-            "-pix_fmt",
-            PixfmtToString(this.PixelFormat),
-            "-vcodec",
-            "rawvideo",
+            "-loglevel", "error",
+            "-f", "image2pipe",
+            "-vf", $"scale={this.Size.X}:{this.Size.Y}",
+            "-sws_flags", this.ResizeAlgo,
+            "-pix_fmt", "rgba",
+            "-vcodec", "rawvideo",
             "-"
         });
 
@@ -183,51 +175,19 @@ internal class FFVideoFileSource : IVideoSource
         this.proc.StartInfo.CreateNoWindow = true;
         this.proc.Start();
 
-        var (width, height) = this.Size;
-        var bytesToRead = this.PixelChannels * width * height;
         this.stdout = this.proc.StandardOutput.BaseStream;
         this.stderr = this.proc.StandardError;
-        this.stdoutReader = new FFStdoutReader(this.stdout, bytesToRead);
+        this.stdoutReader = new FFStdoutReader(this.stdout, this.bytesPerFrame);
 
         this.Position = startIndex;
-        this.LastFrame = this.ReadNextFrame();
     }
-
-    public static string PixfmtToString(PixelFormat pixfmt)
-    {
-        if (pixfmt == PixelFormat.ARGB32)
-        {
-            return "argb";
-        }
-        else if (pixfmt == PixelFormat.RGBA32)
-        {
-            return "rgba";
-        }
-        else if (pixfmt == PixelFormat.BGRA32)
-        {
-            return "bgra";
-        }
-        else if (pixfmt == PixelFormat.RGB24)
-        {
-            return "rgb24";
-        }
-        else if (pixfmt == PixelFormat.BGR24)
-        {
-            return "bgr24";
-        }
-        else
-        {
-            throw new NotSupportedException($"Unsupported pixfmt: {pixfmt}");
-        }
-    }
-
     public void SkipFrames(int n = 1)
     {
         if (this.stdoutReader != null)
         {
             for (long i = 0; i < n; i++)
             {
-                this.stdoutReader.ReadNextFrame().Wait();
+                this.stdoutReader.ReadNextFrame();
             }
             this.Position += n;
         }
@@ -238,87 +198,93 @@ internal class FFVideoFileSource : IVideoSource
         return (int)(this.FrameRate * time + 0.00001);
     }
 
-    public unsafe SKImage ReadNextFrame()
+    public Memory<byte>? ReadNextFrame()
     {
-        using var _ = this.measurer.UseMeasurer("read-frame");
+        using var _ = this.pm.UseMeasurer("read-frame");
 
-        var (width, height) = this.Size;
-        var bytesToRead = this.PixelChannels * width * height;
-
-        var stdout = this.proc?.StandardOutput.BaseStream;
-
-        SKImage result;
-        if (stdout != null)
+        if (this.stdout != null)
         {
-            var buffer = this.stdoutReader?.ReadNextFrame().Result;
+            var buffer = this.stdoutReader?.ReadNextFrame();
             if (buffer is null)
             {
-                Trace.TraceWarning($"In file {this.FileName}, {bytesToRead} bytes wanted but not enough bytes read at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
+                Trace.TraceWarning($"In file {this.FileName}, {this.bytesPerFrame} bytes wanted but not enough bytes read at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
                 if (this.LastFrame is null)
                 {
                     throw new IOException($"failed to read the first frame of video file {this.FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
                 }
-                result = this.LastFrame;
+                this.Position += 1;
+                return buffer;
             }
             else
             {
                 // install pixels
-
-                if (buffer.Value.Length != this.bytesPerFrame || this.PixelFormat != PixelFormat.RGBA32)
+                if (buffer.Value.Length != this.bytesPerFrame)
                 {
-                    throw new ArgumentException($"MakeFrameByTime returns {buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct. Pixel format in VideoSource is {this.PixelFormat}, wanted: rgba/rgba8888/rgba32.");
+                    throw new ArgumentException($"MakeFrameByTime returns {buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct.");
                 }
 
-                var mh = buffer.Value.Pin();
-                var img = SKImage.FromPixelCopy(this.imageInfo, buffer.Value.Span);
-                result = img;
+                using (this.pm.UseMeasurer("memory->skimage"))
+                {
+                    this.Position += 1;
+                    return buffer;
+                }
             }
         }
         else
         {
             throw new NotSupportedException("Internal ffmpeg wrapper is not started.");
         }
-
-        this.Position += 1;
-        return result;
     }
 
-    public SKImage? MakeFrame(int frameIndex)
+    public SKBitmap? MakeFrame(int frameIndex)
     {
-        using var _ = this.measurer.UseMeasurer("make-frame");
+        using var _ = this.pm.UseMeasurer("make-frame");
 
         // Initialize proc if it is not open
         if (this.proc is null)
         {
             Trace.TraceWarning("Internal process not detected, trying to initialize...");
             this.Init();
-            return this.LastFrame;
-        }
-
-        // Use cache.
-        if (this.Position == frameIndex && this.LastFrame != null)
-        {
-            return this.LastFrame;
-        }
-        else if (frameIndex < this.Position || frameIndex > this.Position + 100)
-        {
-            // seek to specified frame would takes too long.
-            this.Init(frameIndex);
-            return this.LastFrame;
+            this.LastFrame = this.ReadNextFrame();
         }
         else
         {
-            this.SkipFrames(frameIndex - this.Position - 1);
-            return this.ReadNextFrame();
+            // Use cache.
+            if (this.Position == frameIndex && this.LastFrame != null)
+            {
+                // directly use this.LastFrame.
+            }
+            else if (frameIndex < this.Position || frameIndex > this.Position + 100)
+            {
+                // seek to specified frame would takes too long.
+                this.Init(frameIndex);
+                this.LastFrame = this.ReadNextFrame();
+            }
+            else
+            {
+                this.SkipFrames(frameIndex - this.Position - 1);
+                this.LastFrame = this.ReadNextFrame();
+            }
+        }
+
+        if (this.LastFrame != null)
+        {
+            using var img = SKImage.FromPixelCopy(this.imageInfo, this.LastFrame.Value.Span);
+            return SKBitmap.FromImage(img);
+        }
+        else
+        {
+            return null;
         }
     }
 
-    public SKImage? MakeFrameByTime(double t)
+    public SKBitmap? MakeFrameByTime(double t)
     {
         // + 1 so that it represents the frame position that it will be
         // after the frame is read. This makes the later comparisons easier.
         var pos = this.GetFrameNumber(t) + 1;
-        return this.MakeFrame(pos);
+        var frame = this.MakeFrame(pos);
+        return frame;
     }
 
     public string? GetErrors()

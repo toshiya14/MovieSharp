@@ -37,7 +37,7 @@ internal class FFVideoFileTarget : IDisposable
             "-f", "rawvideo",
             "-vcodec", "rawvideo",
             "-s", $"{this.parameters.Size!.X}x{this.parameters.Size!.Y}",
-            "-pix_fmt", this.parameters.SourcePixfmt.ToFFPixfmt(),
+            "-pix_fmt", "rgba",
             "-r", this.parameters.FrameRate!.Value.ToString("0.000"),
             "-an",
             "-i",
@@ -167,7 +167,7 @@ internal class FFVideoFileTarget : IDisposable
         }
     }
 
-    public void WriteFrame(Memory<byte> frame)
+    public void WriteFrame(ReadOnlySpan<byte> frame)
     {
         if (this.proc is null || this.stdin is null)
         {
@@ -177,7 +177,7 @@ internal class FFVideoFileTarget : IDisposable
         {
             throw new OperationCanceledException(this.GetErrors());
         }
-        this.stdin.BaseStream.Write(frame.Span);
+        this.stdin.BaseStream.Write(frame);
     }
 
     public void Close()

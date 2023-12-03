@@ -178,7 +178,7 @@ public class ComposerTest
             font.Family = "文泉驿微米黑";
             font.Size = 64;
             font.BorderColor = new RGBAColor(0x00, 0x00, 0x00, 0xff);
-            font.Color = new RGBAColor(0xff, 0xff, 0xff, 0xff);
+            font.Color = new RGBAColor(0xff, 0x00, 0x00, 0xff);
         };
         stb.AddSimple(1, 3, "测试字幕1")
            .WithTimeline(x =>

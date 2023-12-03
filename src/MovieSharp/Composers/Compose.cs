@@ -65,7 +65,7 @@ internal class Compose : ICompose
     /// <param name="frameRate">The frame rate for the video.</param>
     /// <param name="channels">The audio channels.</param>
     /// <param name="samplerate">The audio sample rate.</param>
-    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100, string ffmpegBin = "ffmpeg", CancellationTokenSource? cts = null)
+    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100, string ffmpegBin = "ffmpeg")
     {
         this.Size = new Coordinate(width, height);
         this.duration = duration;
@@ -73,7 +73,7 @@ internal class Compose : ICompose
         this.Channels = channels;
         this.SampleRate = samplerate;
         this.FFMPEGBinary = ffmpegBin;
-        this.cts = cts ?? new CancellationTokenSource();
+        this.cts = new CancellationTokenSource();
         this.surface = new RasterSurface(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
     }
 
@@ -228,8 +228,10 @@ internal class Compose : ICompose
                 surface.Canvas.Flush();
 
                 using var img = surface.Snapshot();
-                using var bmp = SKBitmap.FromImage(img);
-                writer.WriteFrame(bmp.Bytes.AsMemory());
+                using var pixmap = img.PeekPixels();
+                pixmap.GetPixelSpan();
+
+                writer.WriteFrame(pixmap.GetPixelSpan());
 
                 this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
             }, this.cts.Token);

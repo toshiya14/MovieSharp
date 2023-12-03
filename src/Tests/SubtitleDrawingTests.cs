@@ -93,7 +93,7 @@ public class SubtitleDrawingTests
         using var img = new SKBitmap(1920, 1080);
         using var cvs = new SKCanvas(img);
         cvs.Clear(SKColors.AliceBlue);
-        cvs.DrawImage(src.MakeFrame(0), 0, 0);
+        cvs.DrawBitmap(src.MakeFrame(0), 0, 0);
 
         var box = sub.GetLastTextBox();
         UnitTestUtils.PrintProperties(box);
