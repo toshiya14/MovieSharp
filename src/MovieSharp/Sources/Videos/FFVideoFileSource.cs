@@ -74,8 +74,9 @@ internal class FFVideoFileSource : IVideoSource
     /// <param name="startTime"></param>
     public void Init(int startIndex = 0)
     {
+#if DEBUG
         using var _ = this.pm.UseMeasurer("init");
-
+#endif
         this.Infos = FFProbe.Analyse(this.FileName);
 
         if (this.Infos.VideoStreams.Count < 1)
@@ -200,7 +201,9 @@ internal class FFVideoFileSource : IVideoSource
 
     public Memory<byte>? ReadNextFrame()
     {
+#if DEBUG
         using var _ = this.pm.UseMeasurer("read-frame");
+#endif
 
         if (this.stdout != null)
         {
@@ -223,11 +226,12 @@ internal class FFVideoFileSource : IVideoSource
                     throw new ArgumentException($"MakeFrameByTime returns {buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct.");
                 }
 
-                using (this.pm.UseMeasurer("memory->skimage"))
-                {
-                    this.Position += 1;
-                    return buffer;
-                }
+#if DEBUG
+                using var _ = this.pm.UseMeasurer("memory->skimage"));
+#endif
+                this.Position += 1;
+                return buffer;
+
             }
         }
         else
@@ -238,8 +242,9 @@ internal class FFVideoFileSource : IVideoSource
 
     public SKBitmap? MakeFrame(int frameIndex)
     {
+#if DEBUG
         using var _ = this.pm.UseMeasurer("make-frame");
-
+#endif
         // Initialize proc if it is not open
         if (this.proc is null)
         {
