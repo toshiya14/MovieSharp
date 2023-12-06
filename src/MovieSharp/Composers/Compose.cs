@@ -160,7 +160,7 @@ internal class Compose : ICompose
         this.cts.Cancel();
     }
 
-    public async Task ComposeVideo(FFVideoParams? p = null)
+    private async Task ComposeVideo(FFVideoParams? p = null)
     {
         var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
 
@@ -212,7 +212,7 @@ internal class Compose : ICompose
             if (this.cts.IsCancellationRequested)
             {
 #if DEBUG
-                log.Info("Composing action has been cancelled.");
+                this.log.Info("Composing action has been cancelled.");
 #endif
                 break;
             }
@@ -250,7 +250,7 @@ internal class Compose : ICompose
 #endif
     }
 
-    public async Task ComposeAudio(NAudioParams? p = null)
+    private async Task ComposeAudio(NAudioParams? p = null)
     {
         if (this.RenderRange is null)
         {
@@ -308,14 +308,14 @@ internal class Compose : ICompose
         this.isAudioComposed = true;
     }
 
-    async Task ICompose.Compose(FFVideoParams? vp, NAudioParams? ap)
+    void ICompose.Compose(FFVideoParams? vp, NAudioParams? ap)
     {
         this.cts.TryReset();
         if (this.RenderRange is null)
         {
             throw new MovieSharpException(MovieSharpErrorType.RenderRangeNotSet, "Compose.RenderRange should be set before calling any Compose() functions. Or use Compose.UseMaxRenderRange() to auto detect the range.");
         }
-        await this.ComposeAudio(ap);
-        await this.ComposeVideo(vp);
+        this.ComposeAudio(ap).Wait();
+        this.ComposeVideo(vp).Wait();
     }
 }

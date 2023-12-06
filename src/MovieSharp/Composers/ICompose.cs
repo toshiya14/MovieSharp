@@ -38,9 +38,7 @@ public interface ICompose : IAudioClip, IVideoClip
 
     void PutVideo(double time, IVideoClip video);
     void PutAudio(double time, IAudioClip audio);
-    Task ComposeVideo(FFVideoParams? p = null);
-    Task ComposeAudio(NAudioParams? p = null);
-    Task Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
+    void Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
     void Cancel();
     void UseMaxRenderRange();
 }

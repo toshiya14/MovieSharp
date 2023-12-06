@@ -77,7 +77,7 @@ internal class FFVideoFileSource : IVideoSource
 #if DEBUG
         using var _ = this.pm.UseMeasurer("init");
 #endif
-        this.Infos = FFProbe.Analyse(this.FileName);
+        this.Infos = FFProbe.Analyse(this.FileName, new FFOptions { BinaryFolder = this.FFMpegBinFolder });
 
         if (this.Infos.VideoStreams.Count < 1)
         {
@@ -227,7 +227,7 @@ internal class FFVideoFileSource : IVideoSource
                 }
 
 #if DEBUG
-                using var _ = this.pm.UseMeasurer("memory->skimage"));
+                using var __ = this.pm.UseMeasurer("memory->skimage");
 #endif
                 this.Position += 1;
                 return buffer;
