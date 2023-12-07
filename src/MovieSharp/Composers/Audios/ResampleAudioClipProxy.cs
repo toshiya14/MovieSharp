@@ -5,18 +5,17 @@ namespace MovieSharp.Composers.Audios;
 internal class ResampleAudioClipProxy : IAudioClip
 {
     private readonly IAudioClip baseclip;
-    private readonly int samplerate;
 
     public double Duration => this.baseclip.Duration;
 
     public int Channels => this.baseclip.Channels;
 
-    public int SampleRate => this.samplerate;
+    public int SampleRate { get; set; }
 
     public ResampleAudioClipProxy(IAudioClip baseclip, int samplerate)
     {
         this.baseclip = baseclip;
-        this.samplerate = samplerate;
+        this.SampleRate = samplerate;
     }
 
     public ISampleProvider? GetSampler()
@@ -26,7 +25,7 @@ internal class ResampleAudioClipProxy : IAudioClip
             return null;
         }
 
-        var rsp = new MediaFoundationResampler(sampler.ToWaveProvider(), this.samplerate);
+        var rsp = new MediaFoundationResampler(sampler.ToWaveProvider(), this.SampleRate);
 
         return rsp.ToSampleProvider();
     }

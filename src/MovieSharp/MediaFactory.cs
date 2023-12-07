@@ -2,6 +2,7 @@ using MovieSharp.Composers;
 using MovieSharp.Composers.Audios;
 using MovieSharp.Composers.Videos;
 using MovieSharp.Objects;
+using MovieSharp.Objects.Subtitles;
 using MovieSharp.Sources.Audios;
 using MovieSharp.Sources.Videos;
 
@@ -11,6 +12,7 @@ public class MediaFactory
 {
     public string FFMPEGBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffmpeg" : Path.Combine(this.FFMPEGFolder, "ffmpeg");
     public string FFMPEGFolder { get; set; } = string.Empty;
+    private FontCache SharedFontCache { get; } = new FontCache();
 
 
     public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, string resizeAlgo = "bicubic")
@@ -25,6 +27,13 @@ public class MediaFactory
         return vid;
     }
 
+    public IVideoSource LoadImage(string filepath)
+    {
+
+        var vid = new SkiaSequenceSource(filepath);
+        return vid;
+    }
+
     public IVideoSource MakeDummyVideo(RGBAColor? background, (int, int) size, double duration, PixelFormat? pixfmt = null, double frameRate = 60)
     {
         var vid = new DummyVideoSource(background, pixfmt ?? PixelFormat.RGBA32, size, frameRate, duration);
@@ -33,7 +42,12 @@ public class MediaFactory
 
     public ISubtitleSource CreateSubtitle(int width, int height)
     {
-        return new SkiaSubtitleSource((width, height), 60, PixelFormat.RGBA32);
+        return new SkiaSubtitleSource((width, height), 60, PixelFormat.RGBA32, this.SharedFontCache);
+    }
+
+    public void AddLocalFont(string name, string path)
+    {
+        this.SharedFontCache.Add(name, path);
     }
 
     public IAudioSource LoadAudio(string filepath)

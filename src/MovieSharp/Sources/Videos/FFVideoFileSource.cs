@@ -24,12 +24,6 @@ internal class FFVideoFileSource : IVideoSource
     private SKImageInfo imageInfo;
     private int bytesPerFrame;
 
-    #region Debugs
-#if DEBUG
-    private readonly PerformanceMeasurer pm = PerformanceMeasurer.GetCurrentClassMeasurer();
-#endif
-    #endregion
-
     public string FileName { get; }
     public double FrameRate { get; private set; }
     public double Duration { get; private set; }
@@ -74,9 +68,8 @@ internal class FFVideoFileSource : IVideoSource
     /// <param name="startTime"></param>
     public void Init(int startIndex = 0)
     {
-#if DEBUG
-        using var _ = this.pm.UseMeasurer("init");
-#endif
+        using var _ = PerformanceMeasurer.UseMeasurer("init");
+
         this.Infos = FFProbe.Analyse(this.FileName, new FFOptions { BinaryFolder = this.FFMpegBinFolder });
 
         if (this.Infos.VideoStreams.Count < 1)
@@ -137,12 +130,10 @@ internal class FFVideoFileSource : IVideoSource
         {
             offset = Math.Min(1, startTime);
             arglist.AddRange(new string[] {
-                "-ss",
-                (startTime - offset).ToString("f6"),
-                "-i",
-                $"\"{this.FileName}\"",
-                "-ss",
-                offset.ToString("f6"),
+                "-hwaccel", "d3d11",
+                "-ss", (startTime - offset).ToString("f6"),
+                "-i", $"\"{this.FileName}\"",
+                "-ss", offset.ToString("f6"),
             });
         }
         else
@@ -193,17 +184,10 @@ internal class FFVideoFileSource : IVideoSource
             this.Position += n;
         }
     }
-
-    public int GetFrameNumber(double time)
-    {
-        return (int)(this.FrameRate * time + 0.00001);
-    }
-
+    public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
     public Memory<byte>? ReadNextFrame()
     {
-#if DEBUG
-        using var _ = this.pm.UseMeasurer("read-frame");
-#endif
+        using var _ = PerformanceMeasurer.UseMeasurer("read-frame");
 
         if (this.stdout != null)
         {
@@ -226,12 +210,8 @@ internal class FFVideoFileSource : IVideoSource
                     throw new ArgumentException($"MakeFrameByTime returns {buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct.");
                 }
 
-#if DEBUG
-                using var __ = this.pm.UseMeasurer("memory->skimage");
-#endif
                 this.Position += 1;
                 return buffer;
-
             }
         }
         else
@@ -240,15 +220,16 @@ internal class FFVideoFileSource : IVideoSource
         }
     }
 
-    public SKBitmap? MakeFrame(int frameIndex)
+    public SKBitmap? MakeFrameById(int frameIndex)
     {
 #if DEBUG
-        using var _ = this.pm.UseMeasurer("make-frame");
+        using var _ = PerformanceMeasurer.UseMeasurer("make-frame");
 #endif
+        //this.log.Trace($"MakeFrame for {this.FileName}: {frameIndex} / {this.FrameCount}");
         // Initialize proc if it is not open
         if (this.proc is null)
         {
-            Trace.TraceWarning("Internal process not detected, trying to initialize...");
+            this.log.Warn("Internal process not detected, trying to initialize...");
             this.Init();
             this.LastFrame = this.ReadNextFrame();
         }
@@ -274,8 +255,12 @@ internal class FFVideoFileSource : IVideoSource
 
         if (this.LastFrame != null)
         {
-            using var img = SKImage.FromPixelCopy(this.imageInfo, this.LastFrame.Value.Span);
-            return SKBitmap.FromImage(img);
+            using (PerformanceMeasurer.UseMeasurer("make-frame-extract"))
+            {
+                var bitmap = new SKBitmap(this.imageInfo);
+                using var img = SKImage.FromPixelCopy(this.imageInfo, this.LastFrame.Value.Span);
+                return SKBitmap.FromImage(img);
+            }
         }
         else
         {
@@ -285,10 +270,8 @@ internal class FFVideoFileSource : IVideoSource
 
     public SKBitmap? MakeFrameByTime(double t)
     {
-        // + 1 so that it represents the frame position that it will be
-        // after the frame is read. This makes the later comparisons easier.
-        var pos = this.GetFrameNumber(t) + 1;
-        var frame = this.MakeFrame(pos);
+        var pos = this.GetFrameId(t);
+        var frame = this.MakeFrameById(pos);
         return frame;
     }
 

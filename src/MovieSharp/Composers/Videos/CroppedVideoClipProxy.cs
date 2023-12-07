@@ -26,8 +26,7 @@ internal class CroppedVideoClipProxy : IVideoClip
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
-        var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
-        using var _ = pm.UseMeasurer("cropped-drawing");
+        using var _ = PerformanceMeasurer.UseMeasurer("cropped-drawing");
 
         this.surface.Canvas.Clear();
         this.baseclip.Draw(this.surface.Canvas, paint, time);

@@ -160,10 +160,8 @@ internal class Compose : ICompose
         this.cts.Cancel();
     }
 
-    private async Task ComposeVideo(FFVideoParams? p = null)
+    private void ComposeVideo(FFVideoParams? p = null)
     {
-        var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
-
         if (string.IsNullOrWhiteSpace(this.OutputFile))
         {
             throw new ArgumentException("`OutputFile` should be set before call Compose or ComposeVideo.");
@@ -216,25 +214,21 @@ internal class Compose : ICompose
 #endif
                 break;
             }
-            await Task.Run(() =>
-            {
-                using var _ = pm.UseMeasurer("compose-frame");
-                var ellapsed = 0;
+            using var _ = PerformanceMeasurer.UseMeasurer("compose-frame");
+            var ellapsed = 0;
 
-                var time = i * step;
+            var time = i * step;
 
-                surface.Canvas.Clear(param.TransparentColor.ToSKColor());
-                this.Draw(surface.Canvas, null, time);
-                surface.Canvas.Flush();
+            surface.Canvas.Clear(param.TransparentColor.ToSKColor());
+            this.Draw(surface.Canvas, null, time);
+            surface.Canvas.Flush();
 
-                using var img = surface.Snapshot();
-                using var pixmap = img.PeekPixels();
-                pixmap.GetPixelSpan();
+            using var img = surface.Snapshot();
+            using var pixmap = img.PeekPixels();
 
-                writer.WriteFrame(pixmap.GetPixelSpan());
+            writer.WriteFrame(pixmap.GetPixelSpan());
 
-                this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
-            }, this.cts.Token);
+            this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
         }
 #if DEBUG
         var error = writer.GetErrors();
@@ -250,7 +244,7 @@ internal class Compose : ICompose
 #endif
     }
 
-    private async Task ComposeAudio(NAudioParams? p = null)
+    private void ComposeAudio(NAudioParams? p = null)
     {
         if (this.RenderRange is null)
         {
@@ -279,29 +273,26 @@ internal class Compose : ICompose
 
         this.log.Debug($"Compose audio: {start} - {end}, path: {outputPath}");
 
-        await Task.Run(() =>
+        switch (param.Codec.ToLower())
         {
-            switch (param.Codec.ToLower())
-            {
-                default:
-                    throw new ArgumentException($"Unknown audio codec: {param.Codec}.");
+            default:
+                throw new ArgumentException($"Unknown audio codec: {param.Codec}.");
 
-                case "aac":
-                    outputPath += ".aac";
-                    MediaFoundationEncoder.EncodeToAac(wave, outputPath, param.Bitrate);
-                    break;
+            case "aac":
+                outputPath += ".aac";
+                MediaFoundationEncoder.EncodeToAac(wave, outputPath, param.Bitrate);
+                break;
 
-                case "mp3":
-                    outputPath += ".mp3";
-                    MediaFoundationEncoder.EncodeToMp3(wave, outputPath, param.Bitrate);
-                    break;
+            case "mp3":
+                outputPath += ".mp3";
+                MediaFoundationEncoder.EncodeToMp3(wave, outputPath, param.Bitrate);
+                break;
 
-                case "wav":
-                    outputPath += ".wav";
-                    WaveFileWriter.CreateWaveFile16(outputPath, wave.ToSampleProvider());
-                    break;
-            }
-        }, this.cts.Token);
+            case "wav":
+                outputPath += ".wav";
+                WaveFileWriter.CreateWaveFile16(outputPath, wave.ToSampleProvider());
+                break;
+        }
 
 
         this.TempAudioFile = outputPath;
@@ -315,7 +306,7 @@ internal class Compose : ICompose
         {
             throw new MovieSharpException(MovieSharpErrorType.RenderRangeNotSet, "Compose.RenderRange should be set before calling any Compose() functions. Or use Compose.UseMaxRenderRange() to auto detect the range.");
         }
-        this.ComposeAudio(ap).Wait();
-        this.ComposeVideo(vp).Wait();
+        this.ComposeAudio(ap);
+        this.ComposeVideo(vp);
     }
 }

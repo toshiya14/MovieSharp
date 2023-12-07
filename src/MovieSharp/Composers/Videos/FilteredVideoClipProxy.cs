@@ -39,8 +39,7 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
-        var pm = PerformanceMeasurer.GetCurrentClassMeasurer();
-        using var _ = pm.UseMeasurer("filtered-drawing");
+        using var _ = PerformanceMeasurer.UseMeasurer("filtered-drawing");
         var (w, h) = this.baseclip.Size;
 
 

@@ -4,16 +4,18 @@ using MovieSharp.Objects.Subtitles;
 using MovieSharp.Objects.Subtitles.Drawings;
 using MovieSharp.Skia.Surfaces;
 using MovieSharp.Tools;
+using NLog;
 using SkiaSharp;
 
 namespace MovieSharp.Sources.Videos;
 
 internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 {
+    private readonly ILogger log = LogManager.GetLogger(nameof(SkiaSubtitleSource));
+
     private List<TimelineItem> items;
     private DrawingTextBox? lastTextBox;
     private ISurfaceProxy surface;
-    private PerformanceMeasurer pm = PerformanceMeasurer.GetCurrentClassMeasurer();
 
     public int FrameCount => (int)(this.Duration * this.FrameRate);
 
@@ -25,7 +27,9 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
     public double Duration => this.items.Select(x => x.End).Max();
     public SKImageInfo ImageInfo { get; }
 
-    public SkiaSubtitleSource((int, int) renderBound, double framerate, PixelFormat? pixfmt = null)
+    public FontCache FontCache { get; }
+
+    public SkiaSubtitleSource((int, int) renderBound, double framerate, PixelFormat? pixfmt = null, FontCache? cache = null)
     {
         this.items = new List<TimelineItem>();
         this.Size = new Coordinate(renderBound);
@@ -35,6 +39,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         var (w, h) = this.Size;
         this.ImageInfo = new SKImageInfo(w, h, this.PixelFormat.GetColorType(), SKAlphaType.Unpremul);
         this.surface = new RasterSurface(this.ImageInfo);
+        this.FontCache = cache ?? new FontCache();
     }
 
     public void From(SubtitleTimelineBuilder stb)
@@ -47,14 +52,18 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         return this;
     }
 
-    public SKBitmap? MakeFrame(int frameIndex)
+    public SKBitmap? MakeFrameById(int frameIndex)
     {
-        return this.MakeFrameByTime(frameIndex * this.FrameRate);
+        //this.log.Trace($"MakeFrameById: {frameIndex} / {this.FrameCount}");
+        return this.MakeFrameByTime(frameIndex / this.FrameRate);
     }
+
+    public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
     public SKBitmap? MakeFrameByTime(double t)
     {
-        using var _ = this.pm.UseMeasurer("make-subtitle");
+        //this.log.Trace($"MakeFrameByTime: {t} / {this.Duration}");
+        using var _ = PerformanceMeasurer.UseMeasurer("make-subtitle");
 
         var cvs = this.surface.Canvas;
         cvs.Clear();
@@ -66,7 +75,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
 
         cvs.Flush();
         var img = this.surface.Snapshot();
-        return SKBitmap.FromImage(img);
+        return SKBitmap.FromImage(img).Copy();
     }
 
     private static int FindWrap(SKPaint measurePaint, string text, float limit)
@@ -94,7 +103,7 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
         var contentIndex = 0;
 
         var nextRun = part.Contents[0];
-        var measurePaint = nextRun.Font.CreateMeasurePaint();
+        var measurePaint = nextRun.Font.CreateMeasurePaint(this.FontCache);
         var bound = new SKRect();
 
         while (true)
@@ -186,8 +195,8 @@ internal class SkiaSubtitleSource : IVideoSource, ISubtitleSource
             foreach (var (run, pos) in line.Enumerate())
             {
                 var (x, y) = pos;
-                var stroke = run.Font.CreateStrokePaint();
-                var fill = run.Font.CreateFillPaint();
+                var stroke = run.Font.CreateStrokePaint(this.FontCache);
+                var fill = run.Font.CreateFillPaint(this.FontCache);
                 var position = new SKPoint(x + run.LeadingSpace, y + run.Ascent);
                 // Draw Stroke
                 cvs.DrawText(run.Text, position, stroke);

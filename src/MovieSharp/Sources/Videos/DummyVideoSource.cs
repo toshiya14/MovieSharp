@@ -33,7 +33,9 @@ internal class DummyVideoSource : IVideoSource
         }
     }
 
-    public SKBitmap? MakeFrame(int frameIndex)
+    public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
+
+    public SKBitmap? MakeFrameById(int frameIndex)
     {
         return this.snapshot;
     }

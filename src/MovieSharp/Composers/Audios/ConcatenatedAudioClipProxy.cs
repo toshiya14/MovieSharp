@@ -26,15 +26,13 @@ internal class ConcatenatedAudioClipProxy : IAudioClip
         this.baseclip1 = baseclip1;
         this.baseclip2 = baseclip2;
 
-        var bc1chns = baseclip1.Channels;
-        var bc1sr = baseclip1.SampleRate;
-        if (this.baseclip2.Channels != bc1chns)
+        if (this.baseclip2.Channels != this.Channels)
         {
-            this.baseclip2 = this.baseclip2.ChangeChannels(bc1chns);
+            this.baseclip2 = this.baseclip2.ChangeChannels(this.Channels);
         }
-        if (this.baseclip2.SampleRate != bc1sr)
+        if (this.baseclip2.SampleRate != this.SampleRate)
         {
-            this.baseclip2 = this.baseclip2.Resample(bc1sr);
+            this.baseclip2 = this.baseclip2.Resample(this.SampleRate);
         }
     }
 

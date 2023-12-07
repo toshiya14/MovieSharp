@@ -20,7 +20,8 @@ internal class RepeatAudioClipProxy : IAudioClip
     public ISampleProvider? GetSampler()
     {
         var sampler = this.baseclip.GetSampler();
-        if(sampler == null) {
+        if (sampler == null)
+        {
             return null;
         }
 
@@ -30,12 +31,14 @@ internal class RepeatAudioClipProxy : IAudioClip
             if (restTime >= this.baseclip.Duration)
             {
                 sampler = sampler.FollowedBy(this.baseclip.GetSampler());
-                restTime -= this.baseclip.Duration;
             }
             else
             {
-                sampler = sampler.FollowedBy(TimeSpan.FromSeconds(restTime), this.baseclip.GetSampler());
+                sampler = sampler.FollowedBy(
+                    this.baseclip.GetSampler().Take(TimeSpan.FromSeconds(restTime))
+                );
             }
+            restTime -= this.baseclip.Duration;
         }
         return sampler;
     }

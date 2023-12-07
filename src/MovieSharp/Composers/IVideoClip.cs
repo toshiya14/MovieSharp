@@ -13,9 +13,9 @@ public interface IVideoClip : IDisposable
 
 public static class IVideoClipExtensions
 {
-    public static IVideoClip MakeClip(this IVideoSource source)
+    public static IVideoClip MakeClip(this IVideoSource source, double maxCacheTime = 0.5)
     {
-        return new VideoSourceClip(source);
+        return new VideoSourceClip(source, maxCacheTime);
     }
 
     public static IVideoClip Crop(this IVideoClip clip, RectBound croparea)

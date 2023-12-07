@@ -14,7 +14,7 @@ public record FFVideoParams(
 )
 {
     public Coordinate? Size { get; set; } = Size;
-    public int? Threads { get; set; } = Threads ?? Environment.ProcessorCount;
+    public int? Threads { get; set; } = Threads ?? Environment.ProcessorCount / 4;
     public float? FrameRate { get; set; } = FrameRate;
     public string? WithCopyAudio { get; set; } = WithCopyAudio;
     public RGBAColor TransparentColor { get; set; } = TransparentColor ?? RGBAColor.Black;
