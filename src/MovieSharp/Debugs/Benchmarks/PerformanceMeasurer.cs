@@ -89,7 +89,9 @@ public static class PerformanceMeasurer
         }
 
         if (writeToFile) {
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", $"Performance-{DateTime.UtcNow:yyyy-MM-dd-HH-mm-ss}.json");
+            var folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports");
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, $"Performance-{DateTime.UtcNow:yyyy-MM-dd-HH-mm-ss}.json");
             File.WriteAllText(path, JsonSerializer.Serialize(MeasuredData));
         }
 

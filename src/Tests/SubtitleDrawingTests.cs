@@ -32,7 +32,7 @@ public class SubtitleDrawingTests
           {
               x.BorderColor = new RGBAColor(0x00, 0x00, 0x00, 0xff);
               x.Color = new RGBAColor(0xff, 0xff, 0xff, 0xff);
-              x.Family = "Verdana";
+              x.Family = new MovieSharp.Objects.Subtitles.FontFamily(MovieSharp.Objects.Subtitles.FontSource.System, "Verdana");
               x.Size = 256f;
           });
         this.WorkWithTimeline(tb, "simple");
@@ -52,7 +52,7 @@ public class SubtitleDrawingTests
           {
               x.BorderColor = new RGBAColor(0x00, 0x00, 0x00, 0xff);
               x.Color = new RGBAColor(0xff, 0xff, 0xff, 0xff);
-              x.Family = "Verdana";
+              x.Family = new MovieSharp.Objects.Subtitles.FontFamily(MovieSharp.Objects.Subtitles.FontSource.System, "Verdana");
               x.Size = 180f;
           });
 
@@ -74,7 +74,7 @@ public class SubtitleDrawingTests
               {
                   font.BorderColor = new RGBAColor(0x00, 0x00, 0x00, 0xff);
                   font.Color = new RGBAColor(0xff, 0xff, 0xff, 0xff);
-                  font.Family = "Verdana";
+                  font.Family = new MovieSharp.Objects.Subtitles.FontFamily(MovieSharp.Objects.Subtitles.FontSource.System, "Verdana");
                   font.Size = 180f;
               })
              .AddRun("A very long ")
@@ -93,7 +93,7 @@ public class SubtitleDrawingTests
         using var img = new SKBitmap(1920, 1080);
         using var cvs = new SKCanvas(img);
         cvs.Clear(SKColors.AliceBlue);
-        cvs.DrawBitmap(src.MakeFrame(0), 0, 0);
+        cvs.DrawBitmap(src.MakeFrameById(0), 0, 0);
 
         var box = sub.GetLastTextBox();
         UnitTestUtils.PrintProperties(box);

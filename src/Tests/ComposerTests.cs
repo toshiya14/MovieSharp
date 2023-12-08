@@ -50,7 +50,7 @@ public class ComposerTest
         //compose.ComposeAudio(new FFAudioParams());
         //compose.ComposeVideo();
         // ^ equals belows:
-        await compose.Compose();
+        compose.Compose();
 
         this.log.Info("Performance Report:\n" + PerformanceMeasurer.GetReport(TimeUnit.Milliseconds));
     }
@@ -69,7 +69,7 @@ public class ComposerTest
         //compose.ComposeAudio(new FFAudioParams());
         //compose.ComposeVideo();
         // ^ equals belows:
-        await compose.Compose();
+        compose.Compose();
 
         this.log.Info("Performance Report:\n" + PerformanceMeasurer.GetReport(TimeUnit.Milliseconds));
     }
@@ -109,7 +109,7 @@ public class ComposerTest
         var winter = this.fac.LoadVideo(Path.Combine(this.folder, "assets", "winter.mp4"));
         compose.PutVideo(1,
                                winter.MakeClip()
-                               .Slice(1, winter.Duration)
+                               .Slice(1, 2)
                                .Transform()
                                .AddTranslate(1920 / 2, 1080 / 2)
                                .AddScale(0.5f)
@@ -120,13 +120,13 @@ public class ComposerTest
         compose.OnFrameEncoded += (sender, e) => this.log.Info($"Finish: {e.Frame} @ {e.Speed}x / {e.Fps}fps");
         compose.OutputFile = Path.Combine(this.folder, "stack-transform-filter-slice-crop-blur.mp4");
         compose.TempAudioFile = Path.Combine(this.folder, "audio.aac");
-        //compose.RenderRange = new TimeRange(0, 3.0f);
-        compose.UseMaxRenderRange();
+        compose.RenderRange = new TimeRange(0, 3.0f);
+        //compose.UseMaxRenderRange();
 
         //compose.ComposeAudio(new FFAudioParams());
         //compose.ComposeVideo();
         // ^ equals belows:
-        await compose.Compose();
+        compose.Compose();
 
         this.log.Info("Performance Report:\n" + PerformanceMeasurer.GetReport(TimeUnit.Milliseconds));
     }
@@ -175,7 +175,7 @@ public class ComposerTest
         var stb = new SubtitleTimelineBuilder();
         var defaultFont = (FontDefinition font) =>
         {
-            font.Family = "文泉驿微米黑";
+            font.Family = new FontFamily(FontSource.System, "文泉驿微米黑");
             font.Size = 64;
             font.BorderColor = new RGBAColor(0x00, 0x00, 0x00, 0xff);
             font.Color = new RGBAColor(0xff, 0x00, 0x00, 0xff);
