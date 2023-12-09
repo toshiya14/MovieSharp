@@ -14,9 +14,10 @@ internal class FFStdoutReader
         this.frameLength = frameLength;
     }
 
-    public Memory<byte>? ReadNextFrame()
+    public (Memory<byte>? buffer, int readedCount) ReadNextFrame()
     {
         var offset = 0;
+        var reader = new StreamReader(this.stdout);
         //var sw = Stopwatch.StartNew();
         var buffer = new byte[this.frameLength];
 
@@ -25,11 +26,7 @@ internal class FFStdoutReader
             var r = this.stdout.Read(buffer, offset, this.frameLength - offset);
             if (r <= 0)
             {
-                if (offset == 0)
-                {
-                    return null;
-                }
-                else
+                if (reader.EndOfStream)
                 {
                     break;
                 }
@@ -39,12 +36,12 @@ internal class FFStdoutReader
 
         if (offset != this.frameLength)
         {
-            return null;
+            return (null, offset);
         }
 
         //sw.Stop();
         //log.Debug($"ReadNextFrame Finished: {sw.Elapsed}");
 
-        return buffer.AsMemory();
+        return (buffer.AsMemory(), offset);
     }
 }

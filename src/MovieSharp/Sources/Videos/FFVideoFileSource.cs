@@ -128,7 +128,7 @@ internal class FFVideoFileSource : IVideoSource
         double offset;
         if (startTime != 0)
         {
-            offset = Math.Min(1, startTime);
+            offset = Math.Min(3, startTime);
             arglist.AddRange(new string[] {
                 "-hwaccel", "d3d11",
                 "-ss", (startTime - offset).ToString("f6"),
@@ -191,32 +191,32 @@ internal class FFVideoFileSource : IVideoSource
 
         if (this.stdout != null)
         {
-            var buffer = this.stdoutReader?.ReadNextFrame();
-            if (buffer is null)
+            var readed = this.stdoutReader?.ReadNextFrame();
+            if (readed?.buffer is null)
             {
-                Trace.TraceWarning($"In file {this.FileName}, {this.bytesPerFrame} bytes wanted but not enough bytes read at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
+                this.log.Error($"In file {this.FileName}, {this.bytesPerFrame} bytes wanted but read {readed?.readedCount} bytes at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
                 if (this.LastFrame is null)
                 {
-                    throw new IOException($"failed to read the first frame of video file {this.FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
+                    throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, $"failed to read the first frame of video file {this.FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
                 }
                 this.Position += 1;
-                return buffer;
+                return readed?.buffer;
             }
             else
             {
                 // install pixels
-                if (buffer.Value.Length != this.bytesPerFrame)
+                if (readed?.buffer.Value.Length != this.bytesPerFrame)
                 {
-                    throw new ArgumentException($"MakeFrameByTime returns {buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct.");
+                    throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, $"MakeFrameByTime returns {readed?.buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct.");
                 }
 
                 this.Position += 1;
-                return buffer;
+                return readed?.buffer;
             }
         }
         else
         {
-            throw new NotSupportedException("Internal ffmpeg wrapper is not started.");
+            throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, "Internal ffmpeg wrapper is not started.");
         }
     }
 

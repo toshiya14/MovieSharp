@@ -175,6 +175,8 @@ internal class Compose : ICompose
             throw new MovieSharpException(MovieSharpErrorType.ComposeNoClip, "ComposeVideo() called, but there is no video clip inside this compose.");
         }
 
+        this.log.Info("Prepared to compose video.");
+
         var param = p ?? new FFVideoParams();
         param.FrameRate ??= (float)this.FrameRate;
         param.Size ??= this.Size;
@@ -209,9 +211,7 @@ internal class Compose : ICompose
         {
             if (this.cts.IsCancellationRequested)
             {
-#if DEBUG
                 this.log.Info("Composing action has been cancelled.");
-#endif
                 break;
             }
             using var _ = PerformanceMeasurer.UseMeasurer("compose-frame");
@@ -230,7 +230,7 @@ internal class Compose : ICompose
 
             this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
         }
-#if DEBUG
+
         var error = writer.GetErrors();
         if (string.IsNullOrWhiteSpace(error))
         {
@@ -240,8 +240,8 @@ internal class Compose : ICompose
         {
             this.log.Info("Finished. Inner Errors:\n");
             this.log.Warn(error);
+            throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, error);
         }
-#endif
     }
 
     private void ComposeAudio(NAudioParams? p = null)
@@ -253,6 +253,7 @@ internal class Compose : ICompose
 
         var param = p ?? new NAudioParams();
 
+        this.log.Info("Prepared to get sampler.");
         var sampler = param.Resample is null ?
             this.GetSampler() :
             new MediaFoundationResampler(this.GetSampler().ToWaveProvider(), param.Resample.Value).ToSampleProvider();
@@ -261,17 +262,12 @@ internal class Compose : ICompose
         var end = this.RenderRange.Value.Right;
 
         // cut and keep the length same with compose itself.
-        var slice = new OffsetSampleProvider(sampler)
-        {
-            SkipOver = TimeSpan.FromSeconds(start),
-            Take = TimeSpan.FromSeconds(end - start)
-        };
-        var empty = new SilenceProvider(slice.WaveFormat).ToSampleProvider().Take(TimeSpan.FromSeconds(end - start));
-        var wave = new MixingSampleProvider(new[] { slice, empty }).ToWaveProvider();
+        var slice = sampler.Skip(TimeSpan.FromSeconds(start)).Take(TimeSpan.FromSeconds(end - start));
+        var wave = slice.ToWaveProvider();
 
         var outputPath = this.TempAudioFile ?? Path.GetTempFileName();
 
-        this.log.Debug($"Compose audio: {start} - {end}, path: {outputPath}");
+        this.log.Info($"Compose audio: {start} - {end}, path: {outputPath}");
 
         switch (param.Codec.ToLower())
         {

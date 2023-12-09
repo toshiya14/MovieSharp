@@ -2,6 +2,7 @@
 using MovieSharp;
 using MovieSharp.Composers;
 using MovieSharp.Debugs.Benchmarks;
+using MovieSharp.Exceptions;
 using MovieSharp.Objects;
 using MovieSharp.Skia;
 using NLog;
@@ -59,13 +60,10 @@ internal class VideoSourceClip : IVideoClip
             return;
         }
 
-        while (this.FrameCache[findex].loading)
-        {
-            Thread.Sleep(1);
-        }
+        var bmp = this.WaitFrame(findex);
 
         using var _ = PerformanceMeasurer.UseMeasurer("videosrc-drawing");
-        var bmp = this.BestMatchCache(findex);
+
         if (bmp is not null)
         {
             canvas.DrawBitmap(bmp, 0, 0, paint);
@@ -74,6 +72,26 @@ internal class VideoSourceClip : IVideoClip
         {
             this.log.Warn($"Get null bitmap from video source @ {offsetTime}.");
         }
+    }
+
+    private SKBitmap? WaitFrame(int findex)
+    {
+        while (this.FrameCache[findex].loading)
+        {
+            if (this.LoadingTask == null)
+            {
+                return null;
+            }
+            if (this.LoadingTask.IsCompleted)
+            {
+                if (this.LoadingTask.Exception is not null)
+                {
+                    throw this.LoadingTask.Exception;
+                }
+            }
+        }
+
+        return this.FrameCache[findex].frame;
     }
 
     private void ReloadCache(int findex, int count)
@@ -101,22 +119,6 @@ internal class VideoSourceClip : IVideoClip
             }
             //this.log.Trace($"Preload frames: {this.maxCacheTime}s {this.FrameCache.Count} frames");
         });
-    }
-
-    private SKBitmap? BestMatchCache(int findex)
-    {
-        using var _ = PerformanceMeasurer.UseMeasurer("cache-match");
-        if (this.FrameCache.ContainsKey(findex))
-        {
-            while (this.FrameCache[findex].loading)
-            {
-                Thread.Sleep(1);
-            }
-
-            var (_, bmp) = this.FrameCache[findex];
-            return bmp;
-        }
-        return null;
     }
 
     public void Dispose()
