@@ -8,7 +8,9 @@ public enum MovieSharpErrorType
     RenderRangeNotSet,
     ComposeNoClip,
     ResourceNotFound,
-    SubProcessFailed
+    ResourceLoadingFailed,
+    SubProcessFailed,
+    VideoSourceNotInitialized
 }
 
 public class MovieSharpException : Exception

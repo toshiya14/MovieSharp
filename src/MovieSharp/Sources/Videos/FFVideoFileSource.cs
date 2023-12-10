@@ -116,7 +116,18 @@ internal class FFVideoFileSource : IVideoSource
         }
 
         this.Duration = vidstream.Duration.TotalSeconds;
-        this.FrameCount = (int)(vidstream.FrameRate * vidstream.Duration.TotalSeconds);
+
+        if (this.Duration == 0 && this.Infos.VideoStreams.Count > 0)
+        {
+            this.Duration = this.Infos.Duration.TotalSeconds;
+        }
+
+        if (this.Duration == 0)
+        {
+            throw new MovieSharpException(MovieSharpErrorType.ResourceLoadingFailed, "Could not determine the duration of the media, maybe it do not contains video stream.");
+        }
+
+        this.FrameCount = (int)(vidstream.FrameRate * this.Duration);
         this.imageInfo = new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         this.bytesPerFrame = this.Size.X * this.Size.Y * this.PixelChannels;
 
@@ -130,7 +141,7 @@ internal class FFVideoFileSource : IVideoSource
         {
             offset = Math.Min(3, startTime);
             arglist.AddRange(new string[] {
-                "-hwaccel", "d3d11",
+                "-hwaccel", "opencl",
                 "-ss", (startTime - offset).ToString("f6"),
                 "-i", $"\"{this.FileName}\"",
                 "-ss", offset.ToString("f6"),

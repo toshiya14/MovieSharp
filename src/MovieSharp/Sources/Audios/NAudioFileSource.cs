@@ -9,11 +9,14 @@ internal class NAudioFileSource : IAudioSource
     private readonly WaveStream source;
 
     public double Duration { get; }
+    public string FileName { get; }
 
     public NAudioFileSource(string filename)
     {
+        this.FileName = filename;
         var fi = new FileInfo(filename);
-        if (!fi.Exists) {
+        if (!fi.Exists)
+        {
             throw new MovieSharpException(MovieSharpErrorType.ResourceNotFound, $"Not found: {fi.FullName}");
         }
         if (fi.Extension.ToLower() == ".ogg")
@@ -32,7 +35,8 @@ internal class NAudioFileSource : IAudioSource
 
     public ISampleProvider GetSampler()
     {
-        return (this.source as ISampleProvider)!;
+        //return (this.source as ISampleProvider)!;
+        return new AudioFileReader(this.FileName);
     }
 
     public void Dispose()

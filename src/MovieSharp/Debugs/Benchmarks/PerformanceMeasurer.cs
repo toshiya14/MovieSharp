@@ -39,6 +39,10 @@ public static class PerformanceMeasurer
 
     internal static void BeginMeasure(string name)
     {
+        if (MovieSharpModuleConfig.RunInTestMode)
+        {
+            return;
+        }
         if (!MeasuredData.ContainsKey(name))
         {
             MeasuredData[name] = new List<long>();
@@ -48,6 +52,10 @@ public static class PerformanceMeasurer
 
     internal static void StopMeasure(string name)
     {
+        if (MovieSharpModuleConfig.RunInTestMode)
+        {
+            return;
+        }
         var delta = DateTime.UtcNow - BasedTimes[name];
         MeasuredData[name].Add(delta.Ticks);
     }
@@ -60,6 +68,10 @@ public static class PerformanceMeasurer
 
     public static string GetReport(TimeUnit unit = TimeUnit.Ticks, bool writeToFile = true)
     {
+        if (MovieSharpModuleConfig.RunInTestMode)
+        {
+            return "Not in test mode.";
+        }
         var sb = new StringBuilder();
         var maxMeasureNameLength = MeasuredData.Select(x => x.Key.Length).Max();
         foreach (var (c, data) in MeasuredData)
@@ -88,7 +100,8 @@ public static class PerformanceMeasurer
             }
         }
 
-        if (writeToFile) {
+        if (writeToFile)
+        {
             var folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports");
             Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, $"Performance-{DateTime.UtcNow:yyyy-MM-dd-HH-mm-ss}.json");

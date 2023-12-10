@@ -31,14 +31,15 @@ internal class RepeatAudioClipProxy : IAudioClip
             if (restTime >= this.baseclip.Duration)
             {
                 sampler = sampler.FollowedBy(this.baseclip.GetSampler());
+                restTime -= this.baseclip.Duration;
             }
             else
             {
                 sampler = sampler.FollowedBy(
                     this.baseclip.GetSampler().Take(TimeSpan.FromSeconds(restTime))
                 );
+                restTime -= restTime;
             }
-            restTime -= this.baseclip.Duration;
         }
         return sampler;
     }

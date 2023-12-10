@@ -11,6 +11,7 @@ namespace MovieSharp;
 public class MediaFactory
 {
     public string FFMPEGBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffmpeg" : Path.Combine(this.FFMPEGFolder, "ffmpeg");
+    public string FFPROBEBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffprobe" : Path.Combine(this.FFMPEGFolder, "ffprobe");
     public string FFMPEGFolder { get; set; } = string.Empty;
     private FontCache SharedFontCache { get; } = new FontCache();
 
@@ -29,7 +30,6 @@ public class MediaFactory
 
     public IVideoSource LoadImage(string filepath)
     {
-
         var vid = new SkiaSequenceSource(filepath);
         return vid;
     }

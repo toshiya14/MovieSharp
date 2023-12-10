@@ -41,16 +41,18 @@ internal class VideoSourceClip : IVideoClip
     /// <param name="offsetTime">The offset time from the start of this clip.</param>
     public void Draw(SKCanvas canvas, SKPaint? paint, double offsetTime)
     {
-        //this.log.Debug($"Draw on {offsetTime}");
         if (offsetTime > this.Duration || offsetTime < 0)
         {
+            this.log.Warn($"Should not draw {offsetTime}, because it is not in the duration: {this.Duration}");
             return;
         }
 
         var findex = this.FrameProvider.GetFrameId(offsetTime);
+        if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Draw on {findex}, converted from offset time: {offsetTime}.");
 
         if (!this.FrameCache.ContainsKey(findex))
         {
+            if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Cache not matched for {findex}, reload.");
             var end = this.FrameProvider.GetFrameId(Math.Min(this.FrameProvider.Duration, offsetTime + this.maxCacheTime));
             this.ReloadCache(findex, end - findex);
         }
@@ -99,15 +101,20 @@ internal class VideoSourceClip : IVideoClip
         this.LoadingTask?.Wait();
 
         // reload
-        foreach (var (_, entry) in this.FrameCache)
+        var list = new List<int>();
+        foreach (var (i, entry) in this.FrameCache)
         {
+            list.Add(i);
             entry.frame?.Dispose();
         }
+        if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Clear frame cache, Dispposed: {string.Join(',', list)}");
         this.FrameCache.Clear();
-        for (var i = findex; i < findex + count; i++)
+        for (var i = findex; i <= findex + count; i++)
         {
             this.FrameCache[i] = (true, null);
         }
+
+        if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Queued loading: {string.Join(',', this.FrameCache.Keys)}");
 
         this.LoadingTask = Task.Run(() =>
         {

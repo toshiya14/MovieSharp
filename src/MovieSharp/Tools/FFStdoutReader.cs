@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using System.Drawing;
+using NLog;
 
 namespace MovieSharp.Tools;
 
@@ -17,31 +18,28 @@ internal class FFStdoutReader
     public (Memory<byte>? buffer, int readedCount) ReadNextFrame()
     {
         var offset = 0;
-        var reader = new StreamReader(this.stdout);
-        //var sw = Stopwatch.StartNew();
-        var buffer = new byte[this.frameLength];
+        var buf = new byte[frameLength];
 
-        while (offset < this.frameLength)
+        while (offset < frameLength)
         {
-            var r = this.stdout.Read(buffer, offset, this.frameLength - offset);
+            var r = this.stdout.Read(buf, offset, frameLength - offset);
             if (r <= 0)
             {
-                if (reader.EndOfStream)
-                {
-                    break;
-                }
+                if (offset == 0) return (null, 0);
+                else break;
             }
+
             offset += r;
         }
 
-        if (offset != this.frameLength)
+        // Adjust RawData length when changed
+        if (buf.Length != offset)
         {
-            return (null, offset);
+            return (buf.AsMemory()[..offset], offset);
         }
-
-        //sw.Stop();
-        //log.Debug($"ReadNextFrame Finished: {sw.Elapsed}");
-
-        return (buffer.AsMemory(), offset);
+        else
+        {
+            return (buf.AsMemory(), buf.Length);
+        }
     }
 }
