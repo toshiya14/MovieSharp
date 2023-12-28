@@ -35,6 +35,8 @@ public interface ICompose : IAudioClip, IVideoClip
 
     event EventHandler<OnFrameWrittenEventArgs>? OnFrameWritten;
     event EventHandler<FFProgressData>? OnFrameEncoded;
+    event EventHandler OnCancelled;
+    event EventHandler OnCompleted;
 
     void PutVideo(double time, IVideoClip video);
     void PutAudio(double time, IAudioClip audio);

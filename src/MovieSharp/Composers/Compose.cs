@@ -37,6 +37,8 @@ internal class Compose : ICompose
 
     public event EventHandler<OnFrameWrittenEventArgs>? OnFrameWritten;
     public event EventHandler<FFProgressData>? OnFrameEncoded;
+    public event EventHandler? OnCancelled;
+    public event EventHandler? OnCompleted;
 
     public double SubClipsDuration
     {
@@ -207,11 +209,13 @@ internal class Compose : ICompose
         {
             this.OnFrameEncoded?.Invoke(sender, e);
         };
+
+        var isUserCancelled = false;
         for (var i = startFrame; i <= endFrame; i++)
         {
             if (this.cts.IsCancellationRequested)
             {
-                this.log.Info("Composing action has been cancelled.");
+                isUserCancelled = true;
                 break;
             }
             using var _ = PerformanceMeasurer.UseMeasurer("compose-frame");
@@ -232,9 +236,15 @@ internal class Compose : ICompose
         }
 
         var error = writer.GetErrors();
-        if (string.IsNullOrWhiteSpace(error))
+        if (isUserCancelled)
+        {
+            this.log.Info("Composing action has been cancelled.");
+            this.OnCancelled?.Invoke(this, new EventArgs());
+        }
+        else if (string.IsNullOrWhiteSpace(error))
         {
             this.log.Info("Finished normally.");
+            this.OnCompleted?.Invoke(this, new EventArgs());
         }
         else
         {
