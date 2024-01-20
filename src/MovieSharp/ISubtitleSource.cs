@@ -6,11 +6,7 @@ namespace MovieSharp;
 
 public interface ISubtitleSource
 {
-    void AppendSubtitle(TimelineItem item);
+    void AppendTimeline(TimelineItem item);
     void From(SubtitleTimelineBuilder stb);
     IVideoSource AsVideoSource();
-
-#if DEBUG
-    DrawingTextBox? GetLastTextBox();
-#endif
 }

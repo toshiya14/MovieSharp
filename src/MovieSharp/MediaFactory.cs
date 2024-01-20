@@ -1,20 +1,31 @@
+using IronSoftware.Drawing;
 using MovieSharp.Composers;
 using MovieSharp.Composers.Audios;
 using MovieSharp.Composers.Videos;
+using MovieSharp.Fonts;
 using MovieSharp.Objects;
 using MovieSharp.Objects.Subtitles;
 using MovieSharp.Sources.Audios;
+using MovieSharp.Sources.Subtitles;
 using MovieSharp.Sources.Videos;
+using SkiaSharp;
 
 namespace MovieSharp;
+
+public enum SubtitleBackend
+{
+    Skia,
+    GDI
+}
 
 public class MediaFactory
 {
     public string FFMPEGBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffmpeg" : Path.Combine(this.FFMPEGFolder, "ffmpeg");
     public string FFPROBEBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffprobe" : Path.Combine(this.FFMPEGFolder, "ffprobe");
     public string FFMPEGFolder { get; set; } = string.Empty;
-    private FontCache SharedFontCache { get; } = new FontCache();
-
+    //private SixLabordFontManager SharedFontCache { get; } = new SixLabordFontManager();
+    //private Dictionary<string, Font> SixLabordFontManager { get; } = new();
+    public IFontManager<SKFont> FontManager { get; } = new SkiaFontManager();
 
     public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, string resizeAlgo = "bicubic")
     {
@@ -40,14 +51,15 @@ public class MediaFactory
         return vid;
     }
 
-    public ISubtitleSource CreateSubtitle(int width, int height)
+    public ISubtitleSource CreateSubtitle(int width, int height, SubtitleBackend backend = SubtitleBackend.Skia)
     {
-        return new SkiaSubtitleSource((width, height), 60, PixelFormat.RGBA32, this.SharedFontCache);
-    }
-
-    public void AddLocalFont(string name, string path)
-    {
-        this.SharedFontCache.Add(name, path);
+        return backend switch
+        {
+            SubtitleBackend.Skia => new SkiaSubtitleSource((width, height), 60, this.FontManager),
+            SubtitleBackend.GDI => throw new NotImplementedException(),
+            //return new DrawingSubtitleSource((width, height), 60);
+            _ => throw new NotSupportedException($"Not supported subtitle backend: {backend}"),
+        };
     }
 
     public IAudioSource LoadAudio(string filepath)

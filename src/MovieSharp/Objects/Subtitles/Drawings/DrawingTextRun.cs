@@ -1,4 +1,6 @@
-﻿namespace MovieSharp.Objects.Subtitles.Drawings;
+﻿using IronSoftware.Drawing;
+
+namespace MovieSharp.Objects.Subtitles.Drawings;
 
 public class DrawingTextRun
 {
@@ -40,7 +42,7 @@ public class DrawingTextRun
     /// <summary>
     /// The font.
     /// </summary>
-    public FontDefinition Font { get; set; } = new FontDefinition();
+    public FontDefinition Font { get; set; }
 
     public DrawingTextRun(DrawingTextLine parent, TextRun text, float left, float leading, float ascent, float measuredWidth, float measuredHeight)
     {

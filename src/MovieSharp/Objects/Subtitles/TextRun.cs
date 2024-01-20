@@ -3,7 +3,7 @@
 public record TextRun(string Text)
 {
     public string Text { get; set; } = Text;
-    public FontDefinition Font { get; set; } = new FontDefinition();
+    public required FontDefinition Font { get; set; }
 
     /// <summary>
     /// Divide TextRun into 2 runs.

@@ -30,7 +30,7 @@ internal class FontCache
         }
         else
         {
-            throw new InvalidOperationException("Please add font into FontCache first, then Get it.");
+            throw new InvalidOperationException("Please add font into SixLabordFontManager first, then Get it.");
         }
     }
 }
