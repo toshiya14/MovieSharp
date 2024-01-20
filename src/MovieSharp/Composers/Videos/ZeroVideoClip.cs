@@ -13,7 +13,8 @@ internal class ZeroVideoClip : IVideoClip
 
     public double Duration => 0.0;
 
-    public ZeroVideoClip(int width, int height) { 
+    public ZeroVideoClip(int width, int height)
+    {
         this.Size = new Coordinate(width, height);
     }
 
