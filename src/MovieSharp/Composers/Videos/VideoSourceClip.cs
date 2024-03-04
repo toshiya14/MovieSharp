@@ -48,11 +48,11 @@ internal class VideoSourceClip : IVideoClip
         }
 
         var findex = this.FrameProvider.GetFrameId(offsetTime);
-        if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Draw on {findex}, converted from offset time: {offsetTime}.");
+        //if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Draw on {findex}, converted from offset time: {offsetTime}.");
 
         if (!this.FrameCache.ContainsKey(findex))
         {
-            if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Cache not matched for {findex}, reload.");
+            //if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Cache not matched for {findex}, reload.");
             var end = this.FrameProvider.GetFrameId(Math.Min(this.FrameProvider.Duration, offsetTime + this.maxCacheTime));
             this.ReloadCache(findex, end - findex);
         }
@@ -72,7 +72,7 @@ internal class VideoSourceClip : IVideoClip
         }
         else
         {
-            this.log.Warn($"Get null bitmap from video source @ {offsetTime}.");
+            //this.log.Warn($"Get null bitmap from video source @ {offsetTime}.");
         }
     }
 
@@ -107,14 +107,14 @@ internal class VideoSourceClip : IVideoClip
             list.Add(i);
             entry.frame?.Dispose();
         }
-        if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Clear frame cache, Dispposed: {string.Join(',', list)}");
+        //if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Clear frame cache, Dispposed: {string.Join(',', list)}");
         this.FrameCache.Clear();
         for (var i = findex; i <= findex + count; i++)
         {
             this.FrameCache[i] = (true, null);
         }
 
-        if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Queued loading: {string.Join(',', this.FrameCache.Keys)}");
+        //if (MovieSharpModuleConfig.RunInTestMode) this.log.Trace($"Queued loading: {string.Join(',', this.FrameCache.Keys)}");
 
         this.LoadingTask = Task.Run(() =>
         {

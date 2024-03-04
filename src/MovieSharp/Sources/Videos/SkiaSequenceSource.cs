@@ -46,7 +46,8 @@ internal class SkiaSequenceSource : IVideoSource
 
     public void Dispose()
     {
-        foreach (var frame in this.Frames) {
+        foreach (var frame in this.Frames)
+        {
             frame.Dispose();
         }
         this.Stream.Dispose();
@@ -56,12 +57,8 @@ internal class SkiaSequenceSource : IVideoSource
 
     public SKBitmap? MakeFrameById(int frameId)
     {
-        if (frameId < this.Codec.FrameCount)
-        {
-            return this.Frames[frameId];
-        }
-
-        return null;
+        var fid = frameId % this.Codec.FrameCount;
+        return this.Frames[fid];
     }
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
