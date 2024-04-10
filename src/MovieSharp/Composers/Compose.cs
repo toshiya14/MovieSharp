@@ -172,7 +172,7 @@ internal class Compose : ICompose
         {
             throw new MovieSharpException(MovieSharpErrorType.RenderRangeNotSet, "Compose.RenderRange should be set before calling any Compose() functions. Or use Compose.UseMaxRenderRange() to auto detect the range.");
         }
-        if (!this.videos.Any())
+        if (this.videos.Count == 0)
         {
             throw new MovieSharpException(MovieSharpErrorType.ComposeNoClip, "ComposeVideo() called, but there is no video clip inside this compose.");
         }

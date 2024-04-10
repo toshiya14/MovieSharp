@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MovieSharp.Exceptions;
 using NLog;
 using SkiaSharp;
 
@@ -83,12 +84,17 @@ internal class SkiaFontManager : IFontManager<SKFont>
         }
         else
         {
-            throw new KeyNotFoundException($"Font with family name: {familyName} could not be found.");
+            throw new MovieSharpException(MovieSharpErrorType.FontFileNotFound, $"Font with family name: {familyName} could not be found.");
         }
     }
 
     public IEnumerable<string> Names()
     {
         return this.typefaces.Select(x => x.FamilyName).Distinct();
+    }
+
+    public bool IsAvailableFont(string name)
+    {
+        return this.typefaces.Any(x => x.FamilyName == name);
     }
 }

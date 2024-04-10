@@ -16,6 +16,10 @@ public class SlicedVideoClipProxy : IVideoClip
     public SlicedVideoClipProxy(IVideoClip baseclip, double startTime, double endTime)
     {
         this.baseclip = baseclip;
+        if (endTime < startTime)
+        {
+            throw new ArgumentException("The end time could not be earlier than the start time.");
+        }
         this.StartTime = startTime;
         this.EndTime = endTime;
     }

@@ -10,7 +10,8 @@ public enum MovieSharpErrorType
     ResourceNotFound,
     ResourceLoadingFailed,
     SubProcessFailed,
-    VideoSourceNotInitialized
+    VideoSourceNotInitialized,
+    FontFileNotFound,
 }
 
 public class MovieSharpException : Exception

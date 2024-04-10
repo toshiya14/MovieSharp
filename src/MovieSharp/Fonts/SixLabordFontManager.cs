@@ -51,4 +51,8 @@ internal class SixLabordFontManager : IFontManager<SixFont>
             yield return i.Name;
         }
     }
+    public bool IsAvailableFont(string name)
+    {
+        return this.cols.Families.Any(x => x.Name == name);
+    }
 }

@@ -43,7 +43,20 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
 
     public int FrameCount => (int)(this.Duration * this.FrameRate);
 
-    public virtual double Duration => this.TimelineItems.Select(x => x.End).Max();
+    public virtual double Duration
+    {
+        get
+        {
+            if (this.TimelineItems.Count == 0)
+            {
+                return 0;
+            }
+            else
+            {
+                return this.TimelineItems.Select(x => x.End).Max();
+            }
+        }
+    }
 
     public SubtitleSourceBase((int width, int height) renderBound, double framerate)
     {

@@ -13,6 +13,10 @@ internal class SpeedChangedVideoClipProxy : IVideoClip
 
     public SpeedChangedVideoClipProxy(IVideoClip baseclip, double speed)
     {
+        if (speed == 0)
+        {
+            throw new ArgumentException("Speed could not be `0`.");
+        }
         this.baseclip = baseclip;
         this.Speed = speed;
     }

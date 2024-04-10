@@ -14,12 +14,17 @@ public class RepeatedVideoClipProxy : IVideoClip
     public RepeatedVideoClipProxy(IVideoClip baseclip, double duration)
     {
         this.baseclip = baseclip;
+        if (duration <= 0)
+        {
+            throw new ArgumentException("The new duration for repeated video could not be 0 or negative.");
+        }
         this.Duration = duration;
     }
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
-        if (time > this.Duration) {
+        if (time > this.Duration)
+        {
             // Do not draw frames not in this clip.
             return;
         }

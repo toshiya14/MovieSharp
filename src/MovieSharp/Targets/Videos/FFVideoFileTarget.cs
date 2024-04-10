@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 using MovieSharp.Objects.EncodingParameters;
 using NLog;
 
@@ -17,6 +18,8 @@ internal class FFVideoFileTarget : IDisposable
     private Process? proc;
     private FFProgressData progress = new();
 
+    private Regex reProgress = new Regex(@"frame=\s*([0-9]+)\s+fps=\s*([0-9\.]+)\s+q=\s*([0-9\.]+)\s+L?size=\s*(.*?)\s+time=\s*(.*?)\s+bitrate=\s*(.*?)\s+speed=\s*([0-9\.x]+)");
+
     public event EventHandler<FFProgressData>? OnProgress;
 
     public FFVideoFileTarget(FFVideoParams parameters, string outputPath, string ffmpegPath = "ffmpeg")
@@ -28,7 +31,7 @@ internal class FFVideoFileTarget : IDisposable
 
     public void Init()
     {
-        var arglist = new List<string>() { 
+        var arglist = new List<string>() {
             // below: input parameters.
             "-y",
             "-progress", "pipe:1",
@@ -95,6 +98,7 @@ internal class FFVideoFileTarget : IDisposable
         this.proc.StartInfo.RedirectStandardInput = true;
         this.proc.StartInfo.RedirectStandardOutput = true;
         this.proc.OutputDataReceived += this.StdoutReceived;
+        this.proc.ErrorDataReceived += this.StderrReceived; ;
         this.proc.StartInfo.UseShellExecute = false;
         this.proc.StartInfo.CreateNoWindow = true;
         this.proc.Start();
@@ -104,6 +108,20 @@ internal class FFVideoFileTarget : IDisposable
 
         this.progress = new FFProgressData();
         this.proc.BeginOutputReadLine();
+    }
+
+    private void StderrReceived(object sender, DataReceivedEventArgs e)
+    {
+        if (e.Data == null)
+        {
+            return;
+        }
+
+        var progMatches = this.reProgress.Match(e.Data);
+        if (!progMatches.Success)
+        {
+            this.log.Info(@$"[ffmpeg.exe] {e.Data}");
+        }
     }
 
     private void StdoutReceived(object sender, DataReceivedEventArgs e)

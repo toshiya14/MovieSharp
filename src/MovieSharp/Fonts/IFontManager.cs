@@ -11,5 +11,6 @@ public interface IFontManager<TFont>
 {
     void Add(string path);
     TFont CreateFont(Font font);
+    bool IsAvailableFont(string name);
     IEnumerable<string> Names();
 }
