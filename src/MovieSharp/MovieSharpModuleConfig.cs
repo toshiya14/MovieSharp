@@ -16,4 +16,6 @@ public static class MovieSharpModuleConfig
 #else
     public static bool RunInTestMode { get; set; } = false;
 #endif
+
+    public static int LoaderCacheFrames { get; set; } = 8;
 }

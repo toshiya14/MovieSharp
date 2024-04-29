@@ -8,6 +8,7 @@ public interface IVideoClip : IDisposable
 {
     Coordinate Size { get; }
     double Duration { get; }
+    void Preload(double time);
     void Draw(SKCanvas canvas, SKPaint? paint, double time);
 }
 

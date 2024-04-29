@@ -10,6 +10,15 @@ public interface IVideoSource : IDisposable
     double Duration { get; }
     Coordinate Size { get; }
     PixelFormat PixelFormat { get; }
-    SKBitmap? MakeFrameById(int frameId);
+    Memory<byte> MakeFrame(int frameId);
     int GetFrameId(double time);
+}
+
+public static class IVideoSourceExtensions
+{
+    public static Memory<byte> MakeFrameByTime(this IVideoSource src, double time)
+    {
+        var id = src.GetFrameId(time);
+        return src.MakeFrame(id);
+    }
 }

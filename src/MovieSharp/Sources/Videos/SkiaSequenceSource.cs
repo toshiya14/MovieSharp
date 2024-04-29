@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,26 +10,30 @@ using SkiaSharp;
 namespace MovieSharp.Sources.Videos;
 internal class SkiaSequenceSource : IVideoSource
 {
-    public SkiaSequenceSource(string filepath)
+    public unsafe SkiaSequenceSource(string filepath)
     {
-        this.Stream = File.OpenRead(filepath);
-        this.Codec = SKCodec.Create(this.Stream);
-        this.Duration = this.Codec.FrameInfo.Sum(x => x.Duration / 1000.0);
-        var size = this.Codec.Info.Size;
+        using var stream = File.OpenRead(filepath);
+        using var codec = SKCodec.Create(stream);
+        this.Duration = codec.FrameInfo.Sum(x => x.Duration / 1000.0);
+        var size = codec.Info.Size;
         this.Size = new Coordinate(size.Width, size.Height);
-        this.Frames = new SKBitmap[this.FrameCount];
+        this.Frames = new Memory<byte>[this.FrameCount];
+        this.FrameCount = codec.FrameCount;
 
         var imageInfo = new SKImageInfo(size.Width, size.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         for (var i = 0; i < this.FrameCount; i++)
         {
-            var bitmap = new SKBitmap(imageInfo);
+            using var bitmap = new SKBitmap(imageInfo);
             var opt = new SKCodecOptions(i);
-            this.Codec.GetPixels(imageInfo, bitmap.GetPixels(), opt);
-            this.Frames[i] = bitmap;
+            var pixels = bitmap.GetPixels();
+            codec.GetPixels(imageInfo, pixels, opt);
+            var span = new Span<byte>(pixels.ToPointer(), bitmap.Info.BytesSize);
+            var mem = span.ToArray().AsMemory();
+            this.Frames[i] = mem;
         }
     }
 
-    public int FrameCount => this.Codec.FrameCount;
+    public int FrameCount { get; }
 
     public double FrameRate => this.FrameCount / this.Duration;
 
@@ -38,33 +43,17 @@ internal class SkiaSequenceSource : IVideoSource
 
     public PixelFormat PixelFormat => PixelFormat.RGBA32;
 
-    private SKCodec Codec { get; }
-
-    private SKBitmap[] Frames { get; }
-
-    private Stream Stream { get; }
+    private Memory<byte>[] Frames { get; }
 
     public void Dispose()
     {
-        foreach (var frame in this.Frames)
-        {
-            frame.Dispose();
-        }
-        this.Stream.Dispose();
-        this.Codec.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    public SKBitmap? MakeFrameById(int frameId)
+    public unsafe Memory<byte> MakeFrame(int frameId)
     {
-        var fid = frameId % this.Codec.FrameCount;
+        var fid = frameId % this.FrameCount;
         return this.Frames[fid];
     }
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
-
-    public SKBitmap? MakeFrameByTime(double time)
-    {
-        var frameId = this.GetFrameId(time);
-        return this.MakeFrameById(frameId);
-    }
 }

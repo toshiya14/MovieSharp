@@ -23,6 +23,7 @@ internal class FFVideoFileSource : IVideoSource
     private (int?, int?)? targetResolution = null;
     private SKImageInfo imageInfo;
     private int bytesPerFrame;
+    //private DummyVideoSource? fallbackScreen;
 
     public string FileName { get; }
     public double FrameRate { get; private set; }
@@ -30,7 +31,8 @@ internal class FFVideoFileSource : IVideoSource
     public Coordinate Size { get; private set; }
     public int FrameCount { get; private set; }
     public int Position { get; private set; }
-    public Memory<byte>? LastFrame { get; private set; }
+    public Memory<byte> LastFrame { get; private set; }
+    private bool isLastFrameAvailable = false;
     public int PixelChannels { get; private set; } = 4;
     public PixelFormat PixelFormat { get; } = PixelFormat.RGBA32;
     public string ResizeAlgo { get; set; } = "bicubic";
@@ -115,6 +117,8 @@ internal class FFVideoFileSource : IVideoSource
             }
         }
 
+        //this.fallbackScreen = new DummyVideoSource(RGBAColor.Black, PixelFormat.RGBA32, (this.Size.X, this.Size.Y), 60, 1);
+
         this.Duration = vidstream.Duration.TotalSeconds;
 
         if (this.Duration == 0 && this.Infos.VideoStreams.Count > 0)
@@ -190,39 +194,40 @@ internal class FFVideoFileSource : IVideoSource
         {
             for (long i = 0; i < n; i++)
             {
-                this.stdoutReader.ReadNextFrame();
+                this.stdoutReader.ReadNextFrame(this.LastFrame);
             }
             this.Position += n;
         }
     }
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
-    public Memory<byte>? ReadNextFrame()
+
+    /// <summary>
+    /// Read next frame. And update this.LastFrame, then set isLastFrameAvailable.
+    /// If isLastFrameAvailable set `false`, means reach the end or loaded a broken frame
+    /// in the end.
+    /// </summary>
+    /// <returns></returns>
+    /// <exception cref="MovieSharpException"></exception>
+    public void ReadNextFrame()
     {
         using var _ = PerformanceMeasurer.UseMeasurer("read-frame");
 
         if (this.stdout != null)
         {
-            var readed = this.stdoutReader?.ReadNextFrame();
-            if (readed?.buffer is null)
+            var readed = this.stdoutReader?.ReadNextFrame(this.LastFrame);
+            if (readed is null || readed < this.bytesPerFrame)
             {
-                this.log.Error($"In file {this.FileName}, {this.bytesPerFrame} bytes wanted but read {readed?.readedCount} bytes at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
-                if (this.LastFrame is null)
-                {
-                    throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, $"failed to read the first frame of video file {this.FileName}. That might mean that the file is corrupted. That may also mean that you are using a deprecated version of FFMPEG. On Ubuntu/Debian for instance the version in the repos is deprecated. Please update to a recent version from the website.");
-                }
+                this.log.Error($"In file {this.FileName}, {this.bytesPerFrame} bytes wanted but read {readed} bytes at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
+
                 this.Position += 1;
-                return readed?.buffer;
+                this.isLastFrameAvailable = false;
+                return;
             }
             else
             {
-                // install pixels
-                if (readed?.buffer.Value.Length != this.bytesPerFrame)
-                {
-                    throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, $"MakeFrameByTime returns {readed?.buffer.Value.Length} bytes but {this.bytesPerFrame} wanted. Maybe the pixel format is not correct.");
-                }
-
                 this.Position += 1;
-                return readed?.buffer;
+                this.isLastFrameAvailable = true;
+                return;
             }
         }
         else
@@ -231,7 +236,7 @@ internal class FFVideoFileSource : IVideoSource
         }
     }
 
-    public SKBitmap? MakeFrameById(int frameIndex)
+    public Memory<byte> MakeFrame(int frameIndex)
     {
 #if DEBUG
         using var _ = PerformanceMeasurer.UseMeasurer("make-frame");
@@ -242,12 +247,16 @@ internal class FFVideoFileSource : IVideoSource
         {
             this.log.Warn("Internal process not detected, trying to initialize...");
             this.Init();
-            this.LastFrame = this.ReadNextFrame();
+            this.ReadNextFrame();
+            if (!this.isLastFrameAvailable)
+            {
+                this.log.Error($"Failed to load the first frame. path={this.FileName}");
+            }
         }
         else
         {
             // Use cache.
-            if (this.Position == frameIndex && this.LastFrame != null)
+            if (this.Position == frameIndex && this.isLastFrameAvailable)
             {
                 // directly use this.LastFrame.
             }
@@ -255,35 +264,20 @@ internal class FFVideoFileSource : IVideoSource
             {
                 // seek to specified frame would takes too long.
                 this.Init(frameIndex);
-                this.LastFrame = this.ReadNextFrame();
+                this.ReadNextFrame();
             }
             else
             {
                 this.SkipFrames(frameIndex - this.Position - 1);
-                this.LastFrame = this.ReadNextFrame();
+                this.ReadNextFrame();
             }
         }
 
-        if (this.LastFrame != null)
+        if (!this.isLastFrameAvailable)
         {
-            using (PerformanceMeasurer.UseMeasurer("make-frame-extract"))
-            {
-                var bitmap = new SKBitmap(this.imageInfo);
-                using var img = SKImage.FromPixelCopy(this.imageInfo, this.LastFrame.Value.Span);
-                return SKBitmap.FromImage(img);
-            }
+            this.log.Error($"A broken frame has been extracted: path={this.FileName}, findex={frameIndex}.");
         }
-        else
-        {
-            return null;
-        }
-    }
-
-    public SKBitmap? MakeFrameByTime(double t)
-    {
-        var pos = this.GetFrameId(t);
-        var frame = this.MakeFrameById(pos);
-        return frame;
+        return this.LastFrame;
     }
 
     public string? GetErrors()
