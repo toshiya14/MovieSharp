@@ -101,4 +101,9 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
         this.baseclip.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public void Release()
+    {
+        this.baseclip.Release();
+    }
 }

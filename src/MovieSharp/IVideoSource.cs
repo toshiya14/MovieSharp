@@ -10,6 +10,7 @@ public interface IVideoSource : IDisposable
     double Duration { get; }
     Coordinate Size { get; }
     PixelFormat PixelFormat { get; }
-    SKBitmap? MakeFrameById(int frameId);
+    void MakeFrameById(SKBitmap bitmap, int frameId);
     int GetFrameId(double time);
+    void Close(bool cleanup);
 }

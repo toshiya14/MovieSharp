@@ -38,4 +38,9 @@ public class SlicedVideoClipProxy : IVideoClip
         this.baseclip.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public void Release()
+    {
+        this.baseclip.Release();
+    }
 }

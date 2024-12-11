@@ -31,9 +31,8 @@ internal class SkiaSubtitleSource : SubtitleSourceBase
         return trueWidth;
     }
 
-    protected override void DrawTextBox(DrawingTextBox text)
+    protected override void DrawTextBox(SKCanvas cvs, DrawingTextBox text)
     {
-        var cvs = this.Surface.Canvas;
         foreach (var line in text.Lines)
         {
             foreach (var (run, pos) in line.Enumerate())
@@ -52,7 +51,6 @@ internal class SkiaSubtitleSource : SubtitleSourceBase
 
     public override void Dispose()
     {
-        this.Surface.Dispose();
         base.Dispose();
     }
 }

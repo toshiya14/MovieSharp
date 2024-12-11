@@ -50,4 +50,10 @@ internal class ConcatenatedVideoClipProxy : IVideoClip
         this.baseclip2.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public void Release()
+    {
+        this.baseclip1.Release();
+        this.baseclip2.Release();
+    }
 }

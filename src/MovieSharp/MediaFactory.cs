@@ -35,7 +35,6 @@ public class MediaFactory
             FFMpegPath = this.FFMPEGBinary,
             FFMpegBinFolder = this.FFMPEGFolder,
         };
-        vid.Init();
         return vid;
     }
 

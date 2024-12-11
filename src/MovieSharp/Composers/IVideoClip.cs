@@ -6,16 +6,40 @@ namespace MovieSharp.Composers;
 
 public interface IVideoClip : IDisposable
 {
+    /// <summary>
+    /// The real size for this clip.
+    /// </summary>
     Coordinate Size { get; }
+
+    /// <summary>
+    /// The real duration for this clip.
+    /// </summary>
     double Duration { get; }
+
+    /// <summary>
+    /// Draw the frame for the specified time in canvas.
+    /// </summary>
+    /// <param name="canvas"></param>
+    /// <param name="paint"></param>
+    /// <param name="time"></param>
     void Draw(SKCanvas canvas, SKPaint? paint, double time);
+
+    /// <summary>
+    /// Release memories, but not disposed.
+    /// </summary>
+    void Release();
 }
 
 public static class IVideoClipExtensions
 {
-    public static IVideoClip MakeClip(this IVideoSource source, double maxCacheTime = 0.5)
+    public static IVideoClip MakeClipEx(this IVideoSource source, double maxCacheTime = 0.5)
     {
-        return new VideoSourceClip(source, maxCacheTime);
+        return new VideoSourceCachedClip(source, maxCacheTime);
+    }
+
+    public static IVideoClip MakeClip(this IVideoSource source)
+    {
+        return new VideoSourceClip(source);
     }
 
     public static IVideoClip Crop(this IVideoClip clip, RectBound croparea)
@@ -75,10 +99,11 @@ public static class IVideoClipExtensions
     public static IVideoClip Concatenate(this IEnumerable<IVideoClip> videoClips)
     {
         IVideoClip clip = new ZeroVideoClip(0, 0);
-        if (videoClips == null || !videoClips.Any()) {
+        if (videoClips == null || !videoClips.Any())
+        {
             return clip;
         }
-        foreach(var v in videoClips)
+        foreach (var v in videoClips)
         {
             clip = clip.FollowedBy(v);
         }

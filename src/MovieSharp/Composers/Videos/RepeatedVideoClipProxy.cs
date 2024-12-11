@@ -41,4 +41,9 @@ public class RepeatedVideoClipProxy : IVideoClip
         this.baseclip.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public void Release()
+    {
+        this.baseclip.Release();
+    }
 }

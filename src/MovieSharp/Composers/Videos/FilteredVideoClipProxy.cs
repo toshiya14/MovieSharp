@@ -14,7 +14,7 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 
     public double Duration => this.baseclip.Duration;
 
-    private ISurfaceProxy surface;
+    private ISurfaceProxy? surface;
 
     public FilteredVideoClipProxy(IVideoClip baseclip)
     {
@@ -23,13 +23,12 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
         {
             IsAntialias = true
         };
-        this.surface = new RasterSurface(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
     }
 
     public void Dispose()
     {
         this.baseclip.Dispose();
-        this.surface.Dispose();
+        this.surface?.Dispose();
     }
 
     public IVideoClip ToClip()
@@ -39,6 +38,11 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
+        if (this.surface is null)
+        {
+            this.surface = new RasterSurface(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+        }
+
         using var _ = PerformanceMeasurer.UseMeasurer("filtered-drawing");
         var (w, h) = this.baseclip.Size;
 
@@ -172,5 +176,12 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
                 this.paint.ColorFilter
             );
         }
+    }
+
+    public void Release()
+    {
+        this.baseclip.Release();
+        this.surface?.Dispose();
+        this.surface = null;
     }
 }

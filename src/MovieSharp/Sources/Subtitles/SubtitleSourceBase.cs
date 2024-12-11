@@ -37,8 +37,6 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
 
     public SKImageInfo ImageInfo { get; }
 
-    protected ISurfaceProxy Surface { get; }
-
     protected DrawingTextBox? LastTextBox { get; set; }
 
     public int FrameCount => (int)(this.Duration * this.FrameRate);
@@ -63,7 +61,6 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
         this.Size = new Coordinate(renderBound);
         this.FrameRate = framerate;
         this.PixelFormat = PixelFormat.RGBA32; this.ImageInfo = new SKImageInfo(renderBound.width, renderBound.height, this.PixelFormat.GetColorType(), SKAlphaType.Unpremul);
-        this.Surface = new RasterSurface(this.ImageInfo);
     }
 
     public virtual IVideoSource AsVideoSource()
@@ -88,9 +85,9 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
         GC.SuppressFinalize(this);
     }
 
-    public virtual SKBitmap? MakeFrameById(int frameIndex)
+    public virtual void MakeFrameById(SKBitmap frame, int frameIndex)
     {
-        return this.MakeFrameByTime(frameIndex / this.FrameRate);
+        this.MakeFrameByTime(frame, frameIndex / this.FrameRate);
     }
 
     #region Measure Texts
@@ -199,27 +196,35 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
 
     #endregion
 
-    public virtual SKBitmap? MakeFrameByTime(double t)
+    public virtual void MakeFrameByTime(SKBitmap frame, double t)
     {
         using var _ = PerformanceMeasurer.UseMeasurer("make-subtitle");
 
-        var cvs = this.Surface.Canvas;
-        cvs.Clear();
+        var texts = this.TimelineItems.Where(x => x.Start <= t && x.End >= t);
+        if (texts is null || !texts.Any())
+        {
+            return;
+        }
 
-        foreach (var text in this.TimelineItems.Where(x => x.Start <= t && x.End >= t))
+        using var cvs = new SKCanvas(frame);
+        cvs.Clear();
+        foreach (var text in texts)
         {
             if (text.Contents.Count == 0)
             {
                 continue;
             }
             var box = this.MeasureText(text);
-            this.DrawTextBox(box);
+            this.DrawTextBox(cvs, box);
         }
 
         cvs.Flush();
-        var img = this.Surface.Snapshot();
-        return SKBitmap.FromImage(img).Copy();
     }
 
-    protected abstract void DrawTextBox(DrawingTextBox text);
+    protected abstract void DrawTextBox(SKCanvas cvs, DrawingTextBox text);
+
+    public void Close(bool cleanup)
+    {
+        // noting to do.
+    }
 }

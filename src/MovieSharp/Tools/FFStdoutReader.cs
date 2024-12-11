@@ -15,31 +15,36 @@ internal class FFStdoutReader
         this.frameLength = frameLength;
     }
 
-    public (Memory<byte>? buffer, int readedCount) ReadNextFrame()
+    public int ReadNextFrame(Memory<byte> frame)
     {
         var offset = 0;
-        var buf = new byte[frameLength];
+        var buffer = new byte[1024];
 
         while (offset < frameLength)
         {
-            var r = this.stdout.Read(buf, offset, frameLength - offset);
+            var rest = frameLength - offset;
+            if (rest > buffer.Length)
+            {
+                rest = buffer.Length;
+            }
+            else
+            {
+                buffer = new byte[rest];
+            }
+            var r = this.stdout.Read(buffer);
+
             if (r <= 0)
             {
-                if (offset == 0) return (null, 0);
+                if (offset == 0) return 0;
                 else break;
             }
+
+            var span = frame.Slice(offset, r);
+            buffer.CopyTo(span);
 
             offset += r;
         }
 
-        // Adjust RawData length when changed
-        if (buf.Length != offset)
-        {
-            return (buf.AsMemory()[..offset], offset);
-        }
-        else
-        {
-            return (buf.AsMemory(), buf.Length);
-        }
+        return offset;
     }
 }

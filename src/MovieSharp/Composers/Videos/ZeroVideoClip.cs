@@ -27,4 +27,9 @@ internal class ZeroVideoClip : IVideoClip
     {
         // Do nothing.
     }
+
+    public void Release()
+    {
+        // Do nothing.
+    }
 }

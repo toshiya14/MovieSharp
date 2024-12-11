@@ -23,7 +23,8 @@ internal class SpeedChangedVideoClipProxy : IVideoClip
 
     public void Dispose()
     {
-        this.baseclip?.Dispose();
+        this.baseclip.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
@@ -35,5 +36,10 @@ internal class SpeedChangedVideoClipProxy : IVideoClip
         }
         var realTime = time * this.Speed;
         this.baseclip.Draw(canvas, paint, realTime);
+    }
+
+    public void Release()
+    {
+        this.baseclip.Release();
     }
 }

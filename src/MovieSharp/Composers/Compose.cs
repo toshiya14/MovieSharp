@@ -29,7 +29,6 @@ internal class Compose : ICompose
     private double duration;
     private bool isAudioComposed = false;
     private readonly CancellationTokenSource cts;
-    private ISurfaceProxy surface;
 
     public Coordinate Size { get; }
 
@@ -76,7 +75,6 @@ internal class Compose : ICompose
         this.SampleRate = samplerate;
         this.FFMPEGBinary = ffmpegBin;
         this.cts = new CancellationTokenSource();
-        this.surface = new RasterSurface(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
     }
 
 
@@ -109,16 +107,19 @@ internal class Compose : ICompose
         if (this.videos.Count > 0)
         {
             var (w, h) = this.Size;
-            this.surface.Canvas.Clear();
-            foreach (var layout in this.videos.Where(x => x.Time < time))
+            var layoutsForCurrentTime = this.videos.Where(x => x.Time < time);
+            if (layoutsForCurrentTime is null || !layoutsForCurrentTime.Any())
+            {
+                // nothing to draw;
+                return;
+            }
+
+            foreach (var layout in layoutsForCurrentTime)
             {
                 var offsetTime = time - layout.Time;
-                layout.Clip.Draw(this.surface.Canvas, paint, offsetTime);
+                layout.Clip.Draw(canvas, paint, offsetTime);
             }
-            this.surface.Canvas.Flush();
-
-            using var img = this.surface.Snapshot();
-            canvas.DrawImage(img, 0, 0);
+            canvas.Flush();
         }
     }
 
@@ -148,7 +149,6 @@ internal class Compose : ICompose
         {
             a.Clip.Dispose();
         }
-        this.surface.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -166,7 +166,7 @@ internal class Compose : ICompose
     {
         if (string.IsNullOrWhiteSpace(this.OutputFile))
         {
-            throw new ArgumentException("`OutputFile` should be set before call Compose or ComposeVideo.");
+            throw new Exception("LOGIC ERROR: `OutputFile` should be set before call Compose or ComposeVideo.");
         }
         if (this.RenderRange is null)
         {
@@ -203,7 +203,7 @@ internal class Compose : ICompose
 
         var step = 1.0 / this.FrameRate;
 
-        var surface = new RasterSurface(new SKImageInfo(param.Size.X, param.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+        using var surface = new RasterSurface(new SKImageInfo(param.Size.X, param.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
         writer.Init();
         writer.OnProgress += (sender, e) =>
         {
@@ -232,6 +232,8 @@ internal class Compose : ICompose
 
             writer.WriteFrame(pixmap.GetPixelSpan());
 
+            this.DoRelease(time, this.videos);
+
             this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
         }
 
@@ -251,6 +253,23 @@ internal class Compose : ICompose
             this.log.Info("Finished. Inner Errors:\n");
             this.log.Warn(error);
             throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, error);
+        }
+    }
+
+    private void DoRelease(double time, IList<ComposeVideoTrack> videos) {
+        var tobeReleased = new List<ComposeVideoTrack>();
+        
+        // mark up.
+        foreach (var video in videos) {
+            var final = video.Time + video.Clip.Duration;
+            if (final < time) {
+                tobeReleased.Add(video);
+            }
+        }
+
+        // release.
+        foreach (var video in tobeReleased) {
+            video.Clip.Release();
         }
     }
 
@@ -314,5 +333,10 @@ internal class Compose : ICompose
         }
         this.ComposeAudio(ap);
         this.ComposeVideo(vp);
+    }
+
+    public void Release()
+    {
+        throw new NotImplementedException();
     }
 }

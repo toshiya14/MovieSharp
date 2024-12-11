@@ -11,60 +11,80 @@ internal class SkiaSequenceSource : IVideoSource
 {
     public SkiaSequenceSource(string filepath)
     {
-        this.Stream = File.OpenRead(filepath);
-        this.Codec = SKCodec.Create(this.Stream);
-        this.Duration = this.Codec.FrameInfo.Sum(x => x.Duration / 1000.0);
-        var size = this.Codec.Info.Size;
-        this.Size = new Coordinate(size.Width, size.Height);
-        this.Frames = new SKBitmap[this.FrameCount];
+        this.FilePath = filepath;
+    }
 
+    private void LoadFrames()
+    {
+        using var stream = File.OpenRead(this.FilePath);
+        using var codec = SKCodec.Create(stream);
+        var duration = codec.FrameInfo.Sum(x => x.Duration / 1000.0);
+        var size = codec.Info.Size;
+        var frameCount = codec.FrameCount;
+        this.Size = new Coordinate(size.Width, size.Height);
+
+        this.Frames = new SKBitmap[frameCount];
         var imageInfo = new SKImageInfo(size.Width, size.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        for (var i = 0; i < this.FrameCount; i++)
+        for (var i = 0; i < frameCount; i++)
         {
             var bitmap = new SKBitmap(imageInfo);
             var opt = new SKCodecOptions(i);
-            this.Codec.GetPixels(imageInfo, bitmap.GetPixels(), opt);
+            codec.GetPixels(imageInfo, bitmap.GetPixels(), opt);
             this.Frames[i] = bitmap;
         }
+
+        this.FrameCount = frameCount;
+        this.Duration = duration;
+        this.FrameRate = frameCount / duration;
     }
 
-    public int FrameCount => this.Codec.FrameCount;
+    public double Duration { get; private set; } = 0;
 
-    public double FrameRate => this.FrameCount / this.Duration;
+    public int FrameCount { get; private set; } = 0;
 
-    public double Duration { get; }
-
-    public Coordinate Size { get; }
+    public Coordinate Size { get; private set; } = new Coordinate(0, 0);
 
     public PixelFormat PixelFormat => PixelFormat.RGBA32;
 
-    private SKCodec Codec { get; }
 
-    private SKBitmap[] Frames { get; }
+    private SKBitmap[]? Frames { get; set; }
 
-    private Stream Stream { get; }
+    public string FilePath { get; }
+    public double FrameRate { get; private set; }
+
+    public void Close(bool cleanup)
+    {
+        if (this.Frames is not null)
+        {
+            foreach (var frame in this.Frames)
+            {
+                frame.Dispose();
+            }
+        }
+        this.Frames = null;
+    }
 
     public void Dispose()
     {
-        foreach (var frame in this.Frames)
+        if (this.Frames is not null)
         {
-            frame.Dispose();
+            foreach (var frame in this.Frames)
+            {
+                frame.Dispose();
+            }
         }
-        this.Stream.Dispose();
-        this.Codec.Dispose();
         GC.SuppressFinalize(this);
-    }
-
-    public SKBitmap? MakeFrameById(int frameId)
-    {
-        var fid = frameId % this.Codec.FrameCount;
-        return this.Frames[fid];
     }
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
-    public SKBitmap? MakeFrameByTime(double time)
+    public void MakeFrameById(SKBitmap frame, int frameId)
     {
-        var frameId = this.GetFrameId(time);
-        return this.MakeFrameById(frameId);
+        if (this.Frames is null)
+        {
+            this.LoadFrames();
+        }
+
+        var fid = frameId % this.FrameCount;
+        this.Frames![fid].CopyTo(frame);
     }
 }

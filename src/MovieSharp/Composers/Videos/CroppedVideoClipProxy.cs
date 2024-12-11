@@ -14,18 +14,22 @@ internal class CroppedVideoClipProxy : IVideoClip
 
     public double Duration => this.baseclip.Duration;
 
-    public ISurfaceProxy surface;
+    public ISurfaceProxy? surface;
 
     public CroppedVideoClipProxy(IVideoClip baseclip, RectBound croparea)
     {
         this.baseclip = baseclip;
         this.croparea = croparea;
         this.Size = new Coordinate(croparea.Width, croparea.Height);
-        this.surface = new RasterSurface(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
     }
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
+        if (this.surface is null)
+        {
+            this.surface = new RasterSurface(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+        }
+
         using var _ = PerformanceMeasurer.UseMeasurer("cropped-drawing");
 
         this.surface.Canvas.Clear();
@@ -41,7 +45,15 @@ internal class CroppedVideoClipProxy : IVideoClip
     public void Dispose()
     {
         this.baseclip.Dispose();
-        this.surface.Dispose();
+        this.surface?.Dispose();
+        this.surface = null;
         GC.SuppressFinalize(this);
+    }
+
+    public void Release()
+    {
+        this.baseclip.Release();
+        this.surface?.Dispose();
+        this.surface = null;
     }
 }
