@@ -1,5 +1,6 @@
 ﻿using MovieSharp.Composers.Videos;
 using MovieSharp.Objects;
+using MovieSharp.Sources.Videos;
 using SkiaSharp;
 
 namespace MovieSharp.Composers;

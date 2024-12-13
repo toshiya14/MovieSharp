@@ -27,9 +27,9 @@ public class MediaFactory
     //private Dictionary<string, Font> SixLabordFontManager { get; } = new();
     public IFontManager<SKFont> FontManager { get; } = new SkiaFontManager();
 
-    public IVideoSource LoadVideo(string filepath, (int?, int?)? targetResolution = null, string resizeAlgo = "bicubic")
+    public IVideoSource LoadVideo(string filepath, VideoFileSourceFitPolicy fitPolicy, string resizeAlgo = "lanczos")
     {
-        var vid = new FFVideoFileSource(filepath, targetResolution)
+        var vid = new FFVideoFileSource(filepath, fitPolicy)
         {
             ResizeAlgo = resizeAlgo,
             FFMpegPath = this.FFMPEGBinary,

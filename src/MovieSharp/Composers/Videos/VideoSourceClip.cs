@@ -41,26 +41,26 @@ internal class VideoSourceClip : IVideoClip
 
         if (offsetTime > this.Duration || offsetTime < 0)
         {
-            this.log.Warn($"Should not draw {offsetTime}, because it is not in the duration: {this.Duration}");
+            this.log.Debug($"Should not draw {offsetTime}, because it is not in the duration: {this.Duration}");
             return;
         }
 
         var findex = this.FrameProvider.GetFrameId(offsetTime);
 
-        this.WaitFrame(findex);
+        this.WaitFrame(this.frame, findex);
 
         using var _ = PerformanceMeasurer.UseMeasurer("videosrc-drawing");
-
         canvas.DrawBitmap(this.frame, 0, 0, paint);
     }
 
-    private void WaitFrame(int findex)
+    private void WaitFrame(SKBitmap frame, int findex)
     {
         using var _ = PerformanceMeasurer.UseMeasurer($"reload-frame");
-        this.FrameProvider.MakeFrameById(this.frame, findex);
+        this.FrameProvider.MakeFrameById(frame, findex);
     }
 
-    public void Release() {
+    public void Release()
+    {
         this.frame?.Dispose();
         this.FrameProvider?.Close(true);
     }
