@@ -85,9 +85,9 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
         GC.SuppressFinalize(this);
     }
 
-    public virtual void MakeFrameById(SKBitmap frame, int frameIndex)
+    public virtual void DrawFrame(SKCanvas cvs, int frameIndex, (int x, int y) position)
     {
-        this.MakeFrameByTime(frame, frameIndex / this.FrameRate);
+        this.DrawFrameOnTime(cvs, frameIndex / this.FrameRate, position);
     }
 
     #region Measure Texts
@@ -196,7 +196,7 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
 
     #endregion
 
-    public virtual void MakeFrameByTime(SKBitmap frame, double t)
+    public virtual void DrawFrameOnTime(SKCanvas cvs, double t, (int x, int y) position)
     {
         using var _ = PerformanceMeasurer.UseMeasurer("make-subtitle");
 
@@ -206,8 +206,6 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
             return;
         }
 
-        using var cvs = new SKCanvas(frame);
-        cvs.Clear();
         foreach (var text in texts)
         {
             if (text.Contents.Count == 0)
@@ -215,13 +213,13 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
                 continue;
             }
             var box = this.MeasureText(text);
-            this.DrawTextBox(cvs, box);
+            this.DrawTextBox(cvs, box, position);
         }
 
         cvs.Flush();
     }
 
-    protected abstract void DrawTextBox(SKCanvas cvs, DrawingTextBox text);
+    protected abstract void DrawTextBox(SKCanvas cvs, DrawingTextBox text, (int x, int y) position);
 
     public void Close(bool cleanup)
     {

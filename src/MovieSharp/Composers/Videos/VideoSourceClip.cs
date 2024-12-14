@@ -34,11 +34,6 @@ internal class VideoSourceClip : IVideoClip
     /// <param name="offsetTime">The offset time from the start of this clip.</param>
     public void Draw(SKCanvas canvas, SKPaint? paint, double offsetTime)
     {
-        if (this.frame == null)
-        {
-            this.frame = new SKBitmap(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
-        }
-
         if (offsetTime > this.Duration || offsetTime < 0)
         {
             this.log.Debug($"Should not draw {offsetTime}, because it is not in the duration: {this.Duration}");
@@ -47,16 +42,7 @@ internal class VideoSourceClip : IVideoClip
 
         var findex = this.FrameProvider.GetFrameId(offsetTime);
 
-        this.WaitFrame(this.frame, findex);
-
-        using var _ = PerformanceMeasurer.UseMeasurer("videosrc-drawing");
-        canvas.DrawBitmap(this.frame, 0, 0, paint);
-    }
-
-    private void WaitFrame(SKBitmap frame, int findex)
-    {
-        using var _ = PerformanceMeasurer.UseMeasurer($"reload-frame");
-        this.FrameProvider.MakeFrameById(frame, findex);
+        this.FrameProvider.DrawFrame(canvas, findex, (0, 0));
     }
 
     public void Release()

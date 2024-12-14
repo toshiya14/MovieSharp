@@ -31,13 +31,16 @@ internal class SkiaSubtitleSource : SubtitleSourceBase
         return trueWidth;
     }
 
-    protected override void DrawTextBox(SKCanvas cvs, DrawingTextBox text)
+    protected override void DrawTextBox(SKCanvas cvs, DrawingTextBox text, (int x, int y) originPosition)
     {
         foreach (var line in text.Lines)
         {
             foreach (var (run, pos) in line.Enumerate())
             {
                 var (x, y) = pos;
+                x += originPosition.x;
+                y += originPosition.y;
+
                 var stroke = run.Font!.CreateStrokePaint(this.FontManager);
                 var fill = run.Font.CreateFillPaint(this.FontManager);
                 var position = new SKPoint(x + run.LeadingSpace, y + run.Ascent);

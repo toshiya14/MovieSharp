@@ -40,7 +40,6 @@ internal class ConcatenatedVideoClipProxy : IVideoClip
         }
         else
         {
-            this.baseclip1.Release();
             this.baseclip2.Draw(canvas, paint, time - this.baseclip1.Duration);
         }
     }

@@ -234,7 +234,7 @@ internal class FFVideoFileSource : IVideoSource
         }
     }
 
-    public unsafe void MakeFrameById(SKBitmap frame, int frameIndex)
+    public unsafe void DrawFrame(SKCanvas cvs, int frameIndex, (int x, int y) position)
     {
 #if DEBUG
         using var _ = PerformanceMeasurer.UseMeasurer("make-frame");
@@ -284,7 +284,7 @@ internal class FFVideoFileSource : IVideoSource
             {
                 using var handle = lastFrame.Pin();
                 using var bmp = SKBitmap.FromImage(SKImage.FromPixels(this.imageInfo, (nint)handle.Pointer));
-                bmp.CopyTo(frame);
+                cvs.DrawBitmap(bmp, new SKPoint(position.x, position.y));
             }
             catch
             {
@@ -294,11 +294,11 @@ internal class FFVideoFileSource : IVideoSource
 
     }
 
-    public void MakeFrameByTime(SKBitmap frame, double t)
-    {
-        var pos = this.GetFrameId(t);
-        this.MakeFrameById(frame, pos);
-    }
+    //public void MakeFrameByTime(SKBitmap frame, double t)
+    //{
+    //    var pos = this.GetFrameId(t);
+    //    this.MakeFrameById(frame, pos);
+    //}
 
     public string? GetErrors()
     {

@@ -120,9 +120,11 @@ internal class VideoSourceCachedClip : IVideoClip
         {
             using var _ = PerformanceMeasurer.UseMeasurer($"reload-cache-{count}");
             using var pixels = new SKBitmap(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+            using var canvas = new SKCanvas(pixels);
             for (var i = findex; i <= findex + count; i++)
             {
-                this.FrameProvider.MakeFrameById(pixels, i);
+
+                this.FrameProvider.DrawFrame(canvas, i, (0, 0));
                 this.FrameCache[i] = (false, pixels);
             }
             //this.log.Trace($"Preload frames: {this.maxCacheTime}s {this.FrameCache.Count} frames");

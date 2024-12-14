@@ -41,17 +41,12 @@ internal class DummyVideoSource : IVideoSource
 
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
-    public void MakeFrameById(SKBitmap frame, int frameIndex)
+    public void DrawFrame(SKCanvas cvs, int frameIndex, (int x, int y) position)
     {
         if (this.snapshot is null) {
             this.GenImg();
         }
-        this.snapshot!.CopyTo(frame);
-    }
-
-    public void MakeFrameByTime(SKBitmap frame, double t)
-    {
-        this.MakeFrameById(frame, 0);
+        cvs.DrawBitmap(this.snapshot, new SKPoint(position.x, position.y));
     }
 
     public void Dispose()
