@@ -38,7 +38,7 @@ public interface ICompose : IAudioClip, IVideoClip
     event EventHandler OnCancelled;
     event EventHandler OnCompleted;
 
-    void PutVideo(double time, IVideoClip video);
+    void PutVideo(double time, IVideoClip video, double renderOrder);
     void PutAudio(double time, IAudioClip audio);
     void Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
     void Cancel();

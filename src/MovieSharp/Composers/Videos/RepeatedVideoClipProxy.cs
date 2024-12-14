@@ -28,6 +28,10 @@ public class RepeatedVideoClipProxy : IVideoClip
             // Do not draw frames not in this clip.
             return;
         }
+        if (this.baseclip.Duration == 0) {
+            // Do not try to draw any duration=0 clip.
+            return;
+        }
         var realTime = time;
         while (realTime >= this.baseclip.Duration)
         {

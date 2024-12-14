@@ -78,9 +78,20 @@ internal class Compose : ICompose
     }
 
 
-    public void PutVideo(double time, IVideoClip clip)
+    public void PutVideo(double time, IVideoClip clip, double renderOrder)
     {
-        this.videos.Add(new(time, clip));
+        // search insert point
+        var i = 0;
+        for (; i < this.videos.Count; i++)
+        {
+            var video = this.videos[i];
+            if (video.DrawingOrder > renderOrder)
+            {
+                break;
+            }
+        }
+
+        this.videos.Insert(i, new(time, clip, renderOrder));
     }
 
     public void PutAudio(double time, IAudioClip clip)
@@ -227,8 +238,7 @@ internal class Compose : ICompose
             this.Draw(surface.Canvas, null, time);
             surface.Canvas.Flush();
 
-            using var img = surface.Snapshot();
-            using var pixmap = img.PeekPixels();
+            using var pixmap = surface.Surface.PeekPixels();
 
             writer.WriteFrame(pixmap.GetPixelSpan());
 
@@ -256,19 +266,23 @@ internal class Compose : ICompose
         }
     }
 
-    private void DoRelease(double time, IList<ComposeVideoTrack> videos) {
+    private void DoRelease(double time, IList<ComposeVideoTrack> videos)
+    {
         var tobeReleased = new List<ComposeVideoTrack>();
-        
+
         // mark up.
-        foreach (var video in videos) {
+        foreach (var video in videos)
+        {
             var final = video.Time + video.Clip.Duration;
-            if (final < time) {
+            if (final < time)
+            {
                 tobeReleased.Add(video);
             }
         }
 
         // release.
-        foreach (var video in tobeReleased) {
+        foreach (var video in tobeReleased)
+        {
             video.Clip.Release();
         }
     }
@@ -329,7 +343,7 @@ internal class Compose : ICompose
         this.cts.TryReset();
         if (this.RenderRange is null)
         {
-            throw new MovieSharpException(MovieSharpErrorType.RenderRangeNotSet, "Compose.RenderRange should be set before calling any Compose() functions. Or use Compose.UseMaxRenderRange() to auto detect the range.");
+            this.UseMaxRenderRange();
         }
         this.ComposeAudio(ap);
         this.ComposeVideo(vp);

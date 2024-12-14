@@ -18,11 +18,17 @@ internal class FFStdoutReader
     public int ReadNextFrame(Memory<byte> frame)
     {
         var offset = 0;
-        var buffer = new byte[1024];
+        var buffer = new byte[1024 * 1024];
 
-        while (offset < frameLength)
+        while (offset < this.frameLength)
         {
-            var rest = frameLength - offset;
+            var rest = this.frameLength - offset;
+
+            if (rest <= 0)
+            {
+                break;
+            }
+
             if (rest > buffer.Length)
             {
                 rest = buffer.Length;
@@ -31,18 +37,12 @@ internal class FFStdoutReader
             {
                 buffer = new byte[rest];
             }
-            var r = this.stdout.Read(buffer);
 
-            if (r <= 0)
-            {
-                if (offset == 0) return 0;
-                else break;
-            }
-
-            var span = frame.Slice(offset, r);
+            this.stdout.ReadExactly(buffer);
+            var span = frame.Slice(offset, rest);
             buffer.CopyTo(span);
 
-            offset += r;
+            offset += rest;
         }
 
         return offset;

@@ -59,7 +59,7 @@ internal class FFVideoFileSource : IVideoSource
     /// </summary>
     public string FFMpegBinFolder { get; set; } = string.Empty;
 
-    public FFVideoFileSource(string filename, VideoFileSourceFitPolicy fitPolicy)
+    public FFVideoFileSource(string filename, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null)
     {
         var fi = new FileInfo(filename);
         if (!fi.Exists)
@@ -82,7 +82,10 @@ internal class FFVideoFileSource : IVideoSource
 
         this.FrameRate = vidstream.FrameRate;
         this.Size = new Coordinate(vidstream.Width, vidstream.Height);
-        this.targetResolution = this.Size;
+
+        // re-calculate target resolution.
+        this.targetResolution = Scale(this.Size, resolution);
+        this.bytesPerFrame = this.targetResolution.X * this.targetResolution.Y * this.PixelChannels;
 
         this.Duration = vidstream.Duration.TotalSeconds;
 
@@ -97,8 +100,7 @@ internal class FFVideoFileSource : IVideoSource
         }
 
         this.FrameCount = (int)(vidstream.FrameRate * this.Duration);
-        this.imageInfo = new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        this.bytesPerFrame = this.Size.X * this.Size.Y * this.PixelChannels;
+        this.imageInfo = new SKImageInfo(this.targetResolution.X, this.targetResolution.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         this.FitPolicy = fitPolicy;
 
         // TODO: temporary not support rotate.
@@ -110,20 +112,14 @@ internal class FFVideoFileSource : IVideoSource
     /// it pre-reads the first frame).
     /// </summary>
     /// <param name="startTime"></param>
-    public void Init(int startIndex = 0, (int?, int?)? targetResolution = null)
+    private void Init(int startIndex = 0)
     {
-
         // release resources
         this.Close(false);
-
-        // re-calculate target resolution.
-        this.targetResolution = Scale(this.Size, targetResolution);
-        this.bytesPerFrame = this.targetResolution.X * this.targetResolution.Y * this.PixelChannels;
 
         using var _ = PerformanceMeasurer.UseMeasurer("init");
 
         // If there is an running or suspending task, terminate it.
-        this.Close(false);
         var arglist = new List<string>();
         var startTime = startIndex / this.FrameRate;
 
@@ -243,46 +239,35 @@ internal class FFVideoFileSource : IVideoSource
 #if DEBUG
         using var _ = PerformanceMeasurer.UseMeasurer("make-frame");
 #endif
-        var cvsWidth = frame.Width;
-        var cvsHeight = frame.Height;
         var policy = "";
 
-        if (this.Size.X != cvsWidth && this.Size.Y != cvsHeight)
+
+        if (this.proc is null)
         {
-            policy = "re-init-size_changed";
-            this.Init(0, (cvsWidth, cvsHeight));
+            policy = "re-init-proc_not_ready";
+            this.log.Warn("Internal process not detected, trying to initialize...");
+            this.Init();
             this.ReadNextFrame();
         }
         else
         {
-
-            if (this.proc is null)
+            // Use cache.
+            if (this.LastFrame is null || frameIndex < this.Position || frameIndex > this.Position + 100)
             {
-                policy = "re-init-proc_not_ready";
-                this.log.Warn("Internal process not detected, trying to initialize...");
-                this.Init();
+                policy = "re-seek";
+                this.Init(frameIndex);
                 this.ReadNextFrame();
+            }
+            else if (this.Position == frameIndex)
+            {
+                policy = "use-last";
+                // directly use this.LastFrame.
             }
             else
             {
-                // Use cache.
-                if (this.LastFrame is null || frameIndex < this.Position || frameIndex > this.Position + 100)
-                {
-                    policy = "re-seek";
-                    this.Init(frameIndex);
-                    this.ReadNextFrame();
-                }
-                else if (this.Position == frameIndex)
-                {
-                    policy = "use-last";
-                    // directly use this.LastFrame.
-                }
-                else
-                {
-                    policy = "fast-forward";
-                    this.SkipFrames(frameIndex - this.Position - 1);
-                    this.ReadNextFrame();
-                }
+                policy = "fast-forward";
+                this.SkipFrames(frameIndex - this.Position - 1);
+                this.ReadNextFrame();
             }
         }
 
@@ -297,9 +282,8 @@ internal class FFVideoFileSource : IVideoSource
         {
             try
             {
-                using var bmp = new SKBitmap();
                 using var handle = lastFrame.Pin();
-                bmp.InstallPixels(this.imageInfo, (nint)handle.Pointer);
+                using var bmp = SKBitmap.FromImage(SKImage.FromPixels(this.imageInfo, (nint)handle.Pointer));
                 bmp.CopyTo(frame);
             }
             catch
@@ -395,8 +379,8 @@ internal class FFVideoFileSource : IVideoSource
         var tr = (double)tx / ty;
 
         if (this.FitPolicy is VideoFileSourceFitPolicy.Contain ||
-            (this.FitPolicy is VideoFileSourceFitPolicy.FixedWidth && tr > or) ||
-            (this.FitPolicy is VideoFileSourceFitPolicy.FixedHeight && tr < or)
+            (this.FitPolicy is VideoFileSourceFitPolicy.FixedWidth && tr < or) ||
+            (this.FitPolicy is VideoFileSourceFitPolicy.FixedHeight && tr > or)
            )
         {
             return $"scale={tx}:{ty}:force_original_aspect_ratio=decrease,pad={tx}:{ty}:-1:-1:color=black";

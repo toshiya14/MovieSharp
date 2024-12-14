@@ -12,6 +12,18 @@ internal class SkiaSequenceSource : IVideoSource
     public SkiaSequenceSource(string filepath)
     {
         this.FilePath = filepath;
+
+        using var stream = File.OpenRead(this.FilePath);
+        using var codec = SKCodec.Create(stream);
+
+        var duration = codec.FrameInfo.Sum(x => x.Duration / 1000.0);
+        var frameCount = codec.FrameCount;
+        var size = codec.Info.Size;
+
+        this.Duration = duration;
+        this.FrameCount = frameCount;
+        this.Size = new Coordinate(size.Width, size.Height);
+        this.FrameRate = frameCount / duration;
     }
 
     private void LoadFrames()
@@ -21,7 +33,6 @@ internal class SkiaSequenceSource : IVideoSource
         var duration = codec.FrameInfo.Sum(x => x.Duration / 1000.0);
         var size = codec.Info.Size;
         var frameCount = codec.FrameCount;
-        this.Size = new Coordinate(size.Width, size.Height);
 
         this.Frames = new SKBitmap[frameCount];
         var imageInfo = new SKImageInfo(size.Width, size.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
@@ -33,8 +44,9 @@ internal class SkiaSequenceSource : IVideoSource
             this.Frames[i] = bitmap;
         }
 
-        this.FrameCount = frameCount;
         this.Duration = duration;
+        this.FrameCount = frameCount;
+        this.Size = new Coordinate(size.Width, size.Height);
         this.FrameRate = frameCount / duration;
     }
 
