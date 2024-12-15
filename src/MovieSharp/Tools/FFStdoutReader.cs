@@ -6,7 +6,6 @@ namespace MovieSharp.Tools;
 internal class FFStdoutReader
 {
     private readonly Stream stdout;
-    private readonly ILogger log = LogManager.GetCurrentClassLogger();
     private readonly int frameLength;
 
     public FFStdoutReader(Stream stdout, int frameLength)
@@ -15,36 +14,11 @@ internal class FFStdoutReader
         this.frameLength = frameLength;
     }
 
-    public int ReadNextFrame(Memory<byte> frame)
-    {
-        var offset = 0;
-        var buffer = new byte[1024 * 1024];
-
-        while (offset < this.frameLength)
-        {
-            var rest = this.frameLength - offset;
-
-            if (rest <= 0)
-            {
-                break;
-            }
-
-            if (rest > buffer.Length)
-            {
-                rest = buffer.Length;
-            }
-            else
-            {
-                buffer = new byte[rest];
-            }
-
-            this.stdout.ReadExactly(buffer);
-            var span = frame.Slice(offset, rest);
-            buffer.CopyTo(span);
-
-            offset += rest;
+    public int ReadNextFrame(Memory<byte> frame) {
+        if (frame.Length != this.frameLength) {
+            throw new Exception($"LOGIC ERROR: Could not read frame, the length of the memory provided({frame.Length}) not as same as frameLength({this.frameLength}).");
         }
-
-        return offset;
+        this.stdout.ReadExactly(frame.Span);
+        return this.frameLength;
     }
 }
