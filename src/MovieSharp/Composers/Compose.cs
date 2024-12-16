@@ -56,6 +56,9 @@ internal class Compose : ICompose
     public int Channels { get; }
     public int SampleRate { get; }
     public string FFMPEGBinary { get; }
+    public bool OnlyEncodeAudio { get; set; } = false;
+    public NAudioParams AudioParams { get; set; } = new();
+    public FFVideoParams VideoParams { get; set; } = new();
 
     /// <summary>
     /// Create a compose.
@@ -173,11 +176,11 @@ internal class Compose : ICompose
         this.cts.Cancel();
     }
 
-    private void ComposeVideo(FFVideoParams? p = null)
+    private void ComposeVideoWithAudio()
     {
         if (string.IsNullOrWhiteSpace(this.OutputFile))
         {
-            throw new Exception("LOGIC ERROR: `OutputFile` should be set before call Compose or ComposeVideo.");
+            throw new Exception("LOGIC ERROR: `OutputFile` should be set before call Compose or ComposeVideoWithAudio.");
         }
         if (this.RenderRange is null)
         {
@@ -185,12 +188,12 @@ internal class Compose : ICompose
         }
         if (this.videos.Count == 0)
         {
-            throw new MovieSharpException(MovieSharpErrorType.ComposeNoClip, "ComposeVideo() called, but there is no video clip inside this compose.");
+            throw new MovieSharpException(MovieSharpErrorType.ComposeNoClip, "ComposeVideoWithAudio() called, but there is no video clip inside this compose.");
         }
 
         this.log.Info("Prepared to compose video.");
 
-        var param = p ?? new FFVideoParams();
+        var param = this.VideoParams;
         param.FrameRate ??= (float)this.FrameRate;
         param.Size ??= this.Size;
         if (this.isAudioComposed)
@@ -287,17 +290,17 @@ internal class Compose : ICompose
         }
     }
 
-    private void ComposeAudio(NAudioParams? p = null)
+    private void ComposeAudio()
     {
         if (this.RenderRange is null)
         {
             throw new MovieSharpException(MovieSharpErrorType.RenderRangeNotSet, "Compose.RenderRange should be set before calling any Compose() functions. Or use Compose.UseMaxRenderRange() to auto detect the range.");
         }
 
-        var param = p ?? new NAudioParams();
+        var param = this.AudioParams;
 
         this.log.Info("Prepared to get sampler.");
-        var sampler = param.Resample is null ?
+        var sampler = (param.Resample is null || param.Resample == this.SampleRate) ?
             this.GetSampler() :
             new MediaFoundationResampler(this.GetSampler().ToWaveProvider(), param.Resample.Value).ToSampleProvider();
 
@@ -308,7 +311,16 @@ internal class Compose : ICompose
         var slice = sampler.Skip(TimeSpan.FromSeconds(start)).Take(TimeSpan.FromSeconds(end - start));
         var wave = slice.ToWaveProvider();
 
-        var outputPath = this.TempAudioFile ?? Path.GetTempFileName();
+        // 
+        string outputPath;
+        if (this.OnlyEncodeAudio)
+        {
+            outputPath = this.OutputFile;
+        }
+        else
+        {
+            outputPath = this.TempAudioFile ?? Path.GetTempFileName();
+        }
 
         this.log.Info($"Compose audio: {start} - {end}, path: {outputPath}");
 
@@ -333,20 +345,26 @@ internal class Compose : ICompose
                 break;
         }
 
-
         this.TempAudioFile = outputPath;
         this.isAudioComposed = true;
     }
 
-    void ICompose.Compose(FFVideoParams? vp, NAudioParams? ap)
+    void ICompose.Compose()
     {
         this.cts.TryReset();
         if (this.RenderRange is null)
         {
             this.UseMaxRenderRange();
         }
-        this.ComposeAudio(ap);
-        this.ComposeVideo(vp);
+
+        this.ComposeAudio();
+        if (this.OnlyEncodeAudio)
+        {
+            this.OnCompleted?.Invoke(this, new EventArgs());
+            return;
+        }
+        this.ComposeVideoWithAudio();
+
     }
 
     public void Release()

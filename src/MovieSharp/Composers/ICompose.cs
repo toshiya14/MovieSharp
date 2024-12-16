@@ -33,6 +33,21 @@ public interface ICompose : IAudioClip, IVideoClip
     /// </summary>
     string? TempAudioFile { set; }
 
+    /// <summary>
+    /// Set output only contains audio.
+    /// </summary>
+    bool OnlyEncodeAudio { set; }
+
+    /// <summary>
+    /// Video encoding parameters for ffmpeg.
+    /// </summary>
+    FFVideoParams VideoParams { get; set; }
+
+    /// <summary>
+    /// Audio encoding parameters for NAudio.
+    /// </summary>
+    NAudioParams AudioParams { get; set; }
+
     event EventHandler<OnFrameWrittenEventArgs>? OnFrameWritten;
     event EventHandler<FFProgressData>? OnFrameEncoded;
     event EventHandler OnCancelled;
@@ -40,7 +55,7 @@ public interface ICompose : IAudioClip, IVideoClip
 
     void PutVideo(double time, IVideoClip video, double renderOrder);
     void PutAudio(double time, IAudioClip audio);
-    void Compose(FFVideoParams? vp = null, NAudioParams? ap = null);
+    void Compose();
     void Cancel();
     void UseMaxRenderRange();
 }
