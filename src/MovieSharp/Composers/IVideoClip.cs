@@ -33,9 +33,9 @@ public interface IVideoClip : IDisposable
 
 public static class IVideoClipExtensions
 {
-    public static IVideoClip MakeClipEx(this IVideoSource source, double maxCacheTime = 0.5)
+    public static IVideoClip MakeClipEx(this IVideoSource source, int maxCachedFrames = 16)
     {
-        return new VideoSourceCachedClip(source, maxCacheTime);
+        return new VideoSourceCachedClip(source, maxCachedFrames);
     }
 
     public static IVideoClip MakeClip(this IVideoSource source)
@@ -80,11 +80,6 @@ public static class IVideoClipExtensions
         {
             return new FilteredVideoClipProxy(clip);
         }
-    }
-
-    public static IVideoClip ChangeSpeed(this IVideoClip clip, double speed)
-    {
-        return new SpeedChangedVideoClipProxy(clip, speed);
     }
 
     public static IVideoClip RepeatTo(this IVideoClip clip, double newDuration)

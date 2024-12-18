@@ -1,14 +1,12 @@
-using IronSoftware.Drawing;
-using MovieSharp.Composers;
+using MovieSharp.Objects;
+using MovieSharp.Sources.Videos;
 using MovieSharp.Composers.Audios;
 using MovieSharp.Composers.Videos;
 using MovieSharp.Fonts;
-using MovieSharp.Objects;
-using MovieSharp.Objects.Subtitles;
 using MovieSharp.Sources.Audios;
 using MovieSharp.Sources.Subtitles;
-using MovieSharp.Sources.Videos;
 using SkiaSharp;
+using MovieSharp.Composers;
 
 namespace MovieSharp;
 
@@ -18,70 +16,77 @@ public enum SubtitleBackend
     GDI
 }
 
-public class MediaFactory
+public static class MediaFactory
 {
-    public string FFMPEGBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffmpeg" : Path.Combine(this.FFMPEGFolder, "ffmpeg");
-    public string FFPROBEBinary => string.IsNullOrEmpty(this.FFMPEGFolder) ? "ffprobe" : Path.Combine(this.FFMPEGFolder, "ffprobe");
-    public string FFMPEGFolder { get; set; } = string.Empty;
-    //private SixLabordFontManager SharedFontCache { get; } = new SixLabordFontManager();
-    //private Dictionary<string, Font> SixLabordFontManager { get; } = new();
-    public IFontManager<SKFont> FontManager { get; } = new SkiaFontManager();
+    public static string FFMPEGFolder { get; set; } = string.Empty;
+    public static IFontManager<SKFont> FontManager { get; } = new SkiaFontManager();
 
-    public IVideoSource LoadVideo(string filepath, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, string resizeAlgo = "lanczos")
+    internal static string GetFFBinPath(string bin) {
+        var ffpath = FFMPEGFolder;
+        if (string.IsNullOrWhiteSpace(ffpath))
+        {
+            ffpath = bin;
+        }
+        else
+        {
+            ffpath = Path.Join(ffpath, bin);
+        }
+        return ffpath;
+    }
+
+    public static IVideoSource LoadVideo(string filepath, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, string resizeAlgo = "lanczos", double speed = 1.0)
     {
-        var vid = new FFVideoFileSource(filepath, fitPolicy, resolution)
+        var vid = new FFVideoFileSource(filepath, fitPolicy, resolution, speed)
         {
             ResizeAlgo = resizeAlgo,
-            FFMpegPath = this.FFMPEGBinary,
-            FFMpegBinFolder = this.FFMPEGFolder,
         };
         return vid;
     }
 
-    public IVideoSource LoadImage(string filepath)
+    public static IVideoSource LoadImage(string filepath)
     {
         var vid = new SkiaSequenceSource(filepath);
         return vid;
     }
 
-    public IVideoSource MakeDummyVideo(RGBAColor? background, (int, int) size, double duration, PixelFormat? pixfmt = null, double frameRate = 60)
+    public static IVideoSource MakeDummyVideo(RGBAColor? background, (int, int) size, double duration, PixelFormat? pixfmt = null, double frameRate = 60)
     {
         var vid = new DummyVideoSource(background, pixfmt ?? PixelFormat.RGBA32, size, frameRate, duration);
         return vid;
     }
 
-    public ISubtitleSource CreateSubtitle(int width, int height, SubtitleBackend backend = SubtitleBackend.Skia)
+    public static ISubtitleSource CreateSubtitle(int width, int height, SubtitleBackend backend = SubtitleBackend.Skia)
     {
         return backend switch
         {
-            SubtitleBackend.Skia => new SkiaSubtitleSource((width, height), 60, this.FontManager),
+            SubtitleBackend.Skia => new SkiaSubtitleSource((width, height), 60, FontManager),
             SubtitleBackend.GDI => throw new NotImplementedException(),
             //return new DrawingSubtitleSource((width, height), 60);
             _ => throw new NotSupportedException($"Not supported subtitle backend: {backend}"),
         };
     }
 
-    public IAudioSource LoadAudio(string filepath)
+    public static IAudioSource LoadAudio(string filepath)
     {
         return new NAudioFileSource(filepath);
     }
 
-    public IAudioSource LoadAudio(Stream stream)
+    public static IAudioSource LoadAudio(Stream stream)
     {
         return new NAudioStreamSource(stream);
     }
 
-    public ICompose NewCompose(int width, int height, double framerate, double duration = -1)
+    public static ICompose NewCompose(int width, int height, double framerate, double duration = -1)
     {
-        return new Compose(width, height, duration, framerate, ffmpegBin: this.FFMPEGBinary);
+        return new Compose(width, height, duration, framerate);
     }
 
-    public IAudioClip ZeroAudioClip(int channels, int sampleRate)
+    public static IAudioClip ZeroAudioClip(int channels, int sampleRate)
     {
         return new ZeroAudioClip(channels, sampleRate);
     }
 
-    public IVideoClip ZeroVideoClip(int width, int height)
+    public static IVideoClip ZeroVideoClip(int width, int height)
     {
         return new ZeroVideoClip(width, height);
     }

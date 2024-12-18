@@ -1,4 +1,5 @@
 ﻿
+using System.Buffers;
 using System.Diagnostics;
 using MovieSharp.Composers.Timelines;
 using MovieSharp.Debugs.Benchmarks;
@@ -16,9 +17,8 @@ namespace MovieSharp.Composers;
 
 public class OnFrameWrittenEventArgs
 {
-    public long Total { get; set; }
     public long Finished { get; set; }
-    public int EllapsedTime { get; set; }
+    public long ElapsedTime { get; set; }
 }
 
 internal class Compose : ICompose
@@ -31,6 +31,7 @@ internal class Compose : ICompose
     private readonly CancellationTokenSource cts;
 
     public Coordinate Size { get; }
+    public SKImageInfo ImageInfo => new(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul);
 
     public double Duration => this.duration < 0 ? this.SubClipsDuration : this.duration;
 
@@ -55,7 +56,6 @@ internal class Compose : ICompose
     public string? TempAudioFile { get; set; }
     public int Channels { get; }
     public int SampleRate { get; }
-    public string FFMPEGBinary { get; }
     public bool OnlyEncodeAudio { get; set; } = false;
     public NAudioParams AudioParams { get; set; } = new();
     public FFVideoParams VideoParams { get; set; } = new();
@@ -69,17 +69,15 @@ internal class Compose : ICompose
     /// <param name="frameRate">The frame rate for the video.</param>
     /// <param name="channels">The audio channels.</param>
     /// <param name="samplerate">The audio sample rate.</param>
-    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100, string ffmpegBin = "ffmpeg")
+    public Compose(int width, int height, double duration = -1, double frameRate = 60, int channels = 2, int samplerate = 44100)
     {
         this.Size = new Coordinate(width, height);
         this.duration = duration;
         this.FrameRate = frameRate;
         this.Channels = channels;
         this.SampleRate = samplerate;
-        this.FFMPEGBinary = ffmpegBin;
         this.cts = new CancellationTokenSource();
     }
-
 
     public void PutVideo(double time, IVideoClip clip, double renderOrder)
     {
@@ -111,13 +109,19 @@ internal class Compose : ICompose
         this.audios.Add(new(time, _clip));
     }
 
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public void DrawFrameWithoutBase(SKCanvas canvas, SKPaint? paint, long frameIndex)
+    {
+        var time = frameIndex * this.FrameRate;
+        this.DrawWithoutBase(canvas, paint, time);
+    }
+
+    private void DrawWithoutBase(SKCanvas canvas, SKPaint? paint, double time)
     {
         if (time > this.Duration)
         {
-            //throw new MovieSharpException(MovieSharpErrorType.DrawingTimeGreaterThanDuration, $"Current drawing time: {time}, duration for this compose: {this.Duration}");
             return;
         }
+
         if (this.videos.Count > 0)
         {
             var (w, h) = this.Size;
@@ -135,6 +139,20 @@ internal class Compose : ICompose
             }
             canvas.Flush();
         }
+    }
+
+    public unsafe void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    {
+        //var findex = (long)(time * this.FrameRate);
+        //var frame = this.LoadBaseFrame(findex);
+        //if (frame is not null && this.BaseFrameProvider is not null)
+        //{
+        //    using var handle = frame.Value.Pin();
+        //    using var img = SKImage.FromPixels(this.BaseFrameProvider.ImageInfo, (nint)handle.Pointer);
+        //    canvas.DrawImage(img, new SKPoint(0, 0), paint);
+        //}
+
+        this.DrawWithoutBase(canvas, paint, time);
     }
 
     public ISampleProvider GetSampler()
@@ -176,7 +194,7 @@ internal class Compose : ICompose
         this.cts.Cancel();
     }
 
-    private void ComposeVideoWithAudio()
+    private unsafe void ComposeVideoWithAudio()
     {
         if (string.IsNullOrWhiteSpace(this.OutputFile))
         {
@@ -193,14 +211,6 @@ internal class Compose : ICompose
 
         this.log.Info("Prepared to compose video.");
 
-        var param = this.VideoParams;
-        param.FrameRate ??= (float)this.FrameRate;
-        param.Size ??= this.Size;
-        if (this.isAudioComposed)
-        {
-            param.WithCopyAudio = this.TempAudioFile;
-        }
-
         var start = this.RenderRange.Value.Left;
         var end = this.RenderRange.Value.Right;
 
@@ -212,19 +222,11 @@ internal class Compose : ICompose
 
         var startFrame = (long)(start * this.FrameRate);
         var endFrame = (long)(end * this.FrameRate);
-
-        using var writer = new FFVideoFileTarget(param, this.OutputFile, this.FFMPEGBinary);
-
         var step = 1.0 / this.FrameRate;
-
-        using var surface = new RasterSurface(new SKImageInfo(param.Size.X, param.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
-        writer.Init();
-        writer.OnProgress += (sender, e) =>
-        {
-            this.OnFrameEncoded?.Invoke(sender, e);
-        };
-
         var isUserCancelled = false;
+        using var surface = new RasterSurface(this.ImageInfo);
+        using var writer = this.GetFrameWriter();
+
         for (var i = startFrame; i <= endFrame; i++)
         {
             if (this.cts.IsCancellationRequested)
@@ -233,21 +235,15 @@ internal class Compose : ICompose
                 break;
             }
             using var _ = PerformanceMeasurer.UseMeasurer("compose-frame");
-            var ellapsed = 0;
 
             var time = i * step;
 
-            surface.Canvas.Clear(param.TransparentColor.ToSKColor());
+            surface.Canvas.Clear(this.VideoParams.TransparentColor.ToSKColor());
             this.Draw(surface.Canvas, null, time);
             surface.Canvas.Flush();
 
             using var pixmap = surface.Surface.PeekPixels();
-
-            writer.WriteFrame(pixmap.GetPixelSpan());
-
-            this.DoRelease(time, this.videos);
-
-            this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { EllapsedTime = ellapsed, Finished = i, Total = endFrame });
+            this.WriteNextFrame(writer, i, pixmap.GetPixelSpan());
         }
 
         var error = writer.GetErrors();
@@ -279,6 +275,7 @@ internal class Compose : ICompose
             var final = video.Time + video.Clip.Duration;
             if (final < time)
             {
+                this.log.Debug($"Release rule matched @ {videos.IndexOf(video)} | {time} | {video.Time} + {video.Clip.Duration}");
                 tobeReleased.Add(video);
             }
         }
@@ -370,5 +367,33 @@ internal class Compose : ICompose
     public void Release()
     {
         throw new NotImplementedException();
+    }
+
+    public FFVideoFileTarget GetFrameWriter()
+    {
+        this.VideoParams.FrameRate ??= (float)this.FrameRate;
+        this.VideoParams.Size = this.Size;
+        if (this.isAudioComposed)
+        {
+            this.VideoParams.WithCopyAudio = this.TempAudioFile;
+        }
+        var writer = new FFVideoFileTarget(this.VideoParams, this.OutputFile, MediaFactory.GetFFBinPath("ffmpeg"));
+        writer.Init();
+        writer.OnProgress += (sender, e) =>
+        {
+            this.OnFrameEncoded?.Invoke(sender, e);
+        };
+
+        return writer;
+    }
+
+    public void WriteNextFrame(FFVideoFileTarget writter, long findex, ReadOnlySpan<byte> buffer)
+    {
+        var sw = Stopwatch.StartNew();
+        var time = findex / this.FrameRate;
+        writter.WriteFrame(buffer);
+        this.DoRelease(time, this.videos);
+        var elapsed = sw.ElapsedMilliseconds;
+        this.OnFrameWritten?.Invoke(this, new OnFrameWrittenEventArgs { ElapsedTime = elapsed, Finished = findex });
     }
 }

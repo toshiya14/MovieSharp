@@ -1,6 +1,7 @@
 ﻿using MovieSharp.Objects;
 using MovieSharp.Objects.EncodingParameters;
 using MovieSharp.Targets.Videos;
+using SkiaSharp;
 
 namespace MovieSharp.Composers;
 
@@ -59,3 +60,10 @@ public interface ICompose : IAudioClip, IVideoClip
     void Cancel();
     void UseMaxRenderRange();
 }
+
+//internal interface IInternalCompose : ICompose {
+//    ReadOnlyMemory<byte>? LoadBaseFrame(long frameIndex);
+//    void DrawFrameWithoutBase(SKCanvas canvas, SKPaint? paint, long frameIndex);
+//    void WriteNextFrame(FFVideoFileTarget writer, long findex, ReadOnlySpan<byte> buffer);
+//    FFVideoFileTarget GetFrameWriter();
+//}

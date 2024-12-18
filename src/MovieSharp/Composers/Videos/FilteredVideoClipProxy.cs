@@ -5,30 +5,39 @@ using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
 
+internal enum VideoFilterType { 
+    None,
+    Blur,
+    ColorTempOffset,
+    PresetFilter
+}
+
+internal record VideoFilterRule(
+    VideoFilterType Type
+) {
+    internal record Blur(float SigmaX, float SigmaY) : VideoFilterRule(VideoFilterType.Blur);
+    internal record ColorTempOffset(float Offset): VideoFilterRule(VideoFilterType.ColorTempOffset);
+    internal record Preset(PresetFilter Filter): VideoFilterRule(VideoFilterType.PresetFilter);
+}
+
 internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 {
     private readonly IVideoClip baseclip;
-    private readonly SKPaint paint;
+
+    private readonly List<VideoFilterRule> rules = new();
 
     public Coordinate Size => this.baseclip.Size;
 
     public double Duration => this.baseclip.Duration;
 
-    private ISurfaceProxy? surface;
-
     public FilteredVideoClipProxy(IVideoClip baseclip)
     {
         this.baseclip = baseclip;
-        this.paint = new SKPaint()
-        {
-            IsAntialias = true
-        };
     }
 
     public void Dispose()
     {
         this.baseclip.Dispose();
-        this.surface?.Dispose();
     }
 
     public IVideoClip ToClip()
@@ -38,42 +47,78 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
 
     public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
-        if (this.surface is null)
-        {
-            this.surface = new RasterSurface(new SKImageInfo(this.Size.X, this.Size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+        using var _ = PerformanceMeasurer.UseMeasurer("filtered-drawing");
+
+        SKPaint _paint;
+        var disposePaint = false;
+        if (paint is null) {
+            _paint = new SKPaint() { IsAntialias = true };
+            disposePaint = true;
+        } else {
+            _paint = paint;
         }
 
-        using var _ = PerformanceMeasurer.UseMeasurer("filtered-drawing");
-        var (w, h) = this.baseclip.Size;
+        ApplyRules(_paint, this.rules);
 
+        this.baseclip.Draw(canvas, paint, time);
 
-        //using var bmp = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        //using var cvs = new SKCanvas(bmp);
-        this.surface.Canvas.Clear();
-        this.baseclip.Draw(this.surface.Canvas, this.paint, time);
-        this.surface.Canvas.Flush();
-        using var img = this.surface.Snapshot();
-
-        canvas.DrawImage(img, new SKPoint(0, 0));
+        if (disposePaint) {
+            _paint.Dispose();
+        }
     }
 
     public IFilteredVideoClip AddBlur(float sigmaX, float sigmaY)
     {
-        if (this.paint.ImageFilter is null)
-        {
-            this.paint.ImageFilter = SKImageFilter.CreateBlur(sigmaX, sigmaY);
-        }
-        else
-        {
-            this.paint.ImageFilter = SKImageFilter.CreateMerge(
-                this.paint.ImageFilter,
-                SKImageFilter.CreateBlur(sigmaX, sigmaY)
-            );
-        }
+        this.rules.Add(new VideoFilterRule.Blur(sigmaX, sigmaY));
         return this;
     }
 
     public IFilteredVideoClip AddColorTempOffset(float offset)
+    {
+        this.rules.Add(new VideoFilterRule.ColorTempOffset(offset));
+        return this;
+    }
+
+    public IFilteredVideoClip AddPresetFilter(PresetFilter filter)
+    {
+        this.rules.Add(new VideoFilterRule.Preset(filter));
+        return this;
+    }
+
+    private static void ApplyRules(SKPaint paint, List<VideoFilterRule> rules) {
+        foreach (var rule in rules) {
+            switch (rule) {
+                case VideoFilterRule.Blur blur:
+                    AddBlur(paint, blur.SigmaX, blur.SigmaY);
+                    break;
+
+                case VideoFilterRule.ColorTempOffset colortemp:
+                    AddColorTempOffset(paint, colortemp.Offset);
+                    break;
+
+                case VideoFilterRule.Preset preset:
+                    AddPresetFilter(paint, preset.Filter);
+                    break;
+            }
+        }
+    }
+
+    private static void AddBlur(SKPaint paint, float sigmaX, float sigmaY)
+    {
+        if (paint.ImageFilter is null)
+        {
+            paint.ImageFilter = SKImageFilter.CreateBlur(sigmaX, sigmaY);
+        }
+        else
+        {
+            paint.ImageFilter = SKImageFilter.CreateMerge(
+                paint.ImageFilter,
+                SKImageFilter.CreateBlur(sigmaX, sigmaY)
+            );
+        }
+    }
+
+    private static void AddColorTempOffset(SKPaint paint, float offset)
     {
         float[] matrix;
         if (offset < 0)
@@ -96,14 +141,13 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
         }
         else
         {
-            // offset = 0, no colors would be changed.
-            return this;
+            // Offset = 0, no colors would be changed.
+            return;
         }
-        this.AppendColorFilter(matrix);
-        return this;
+        AppendColorFilter(paint, matrix);
     }
 
-    public IFilteredVideoClip AddPresetFilter(PresetFilter preset)
+    private static void AddPresetFilter(SKPaint paint, PresetFilter preset)
     {
         var matrix = preset switch
         {
@@ -156,24 +200,23 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
                 0, 1, 0, 0, 0,
                 0, 0, 0, 1, 0,
             },
-            _ => throw new NotSupportedException("This preset of filter has not been supported yet: " + preset),
+            _ => throw new NotSupportedException("This preset of Filter has not been supported yet: " + preset),
         };
-        this.AppendColorFilter(matrix);
-        return this;
+        AppendColorFilter(paint, matrix);
     }
 
-    private void AppendColorFilter(float[] matrix)
+    private static void AppendColorFilter(SKPaint paint, float[] matrix)
     {
         var filter = SKColorFilter.CreateColorMatrix(matrix);
-        if (this.paint.ColorFilter is null)
+        if (paint.ColorFilter is null)
         {
-            this.paint.ColorFilter = filter;
+            paint.ColorFilter = filter;
         }
         else
         {
-            this.paint.ColorFilter = SKColorFilter.CreateCompose(
+            paint.ColorFilter = SKColorFilter.CreateCompose(
                 filter,
-                this.paint.ColorFilter
+                paint.ColorFilter
             );
         }
     }
@@ -181,7 +224,5 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
     public void Release()
     {
         this.baseclip.Release();
-        this.surface?.Dispose();
-        this.surface = null;
     }
 }

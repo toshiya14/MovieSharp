@@ -42,7 +42,7 @@ internal class VideoSourceClip : IVideoClip
 
         var findex = this.FrameProvider.GetFrameId(offsetTime);
 
-        this.FrameProvider.DrawFrame(canvas, findex, (0, 0));
+        this.FrameProvider.DrawFrame(canvas, paint, findex, (0, 0));
     }
 
     public void Release()

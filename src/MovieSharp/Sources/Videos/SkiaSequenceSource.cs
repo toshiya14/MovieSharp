@@ -89,7 +89,7 @@ internal class SkiaSequenceSource : IVideoSource
     }
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
-    public void DrawFrame(SKCanvas cvs, int frameId, (int x, int y) position)
+    public void DrawFrame(SKCanvas cvs, SKPaint? paint, int frameId, (int x, int y) position)
     {
         if (this.Frames is null)
         {
@@ -99,6 +99,6 @@ internal class SkiaSequenceSource : IVideoSource
         var fid = frameId % this.FrameCount;
         var img = this.Frames![fid];
 
-        cvs.DrawBitmap(img, new SKPoint(position.x, position.y));
+        cvs.DrawBitmap(img, new SKPoint(position.x, position.y), paint);
     }
 }

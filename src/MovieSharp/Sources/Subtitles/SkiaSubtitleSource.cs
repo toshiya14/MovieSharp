@@ -31,8 +31,10 @@ internal class SkiaSubtitleSource : SubtitleSourceBase
         return trueWidth;
     }
 
-    protected override void DrawTextBox(SKCanvas cvs, DrawingTextBox text, (int x, int y) originPosition)
+    protected override void DrawTextBox(SKCanvas cvs, SKPaint? paint, DrawingTextBox text, (int x, int y) originPosition)
     {
+        // TODO: SkiaSubtitleSource currently not support pass-in paint.
+
         foreach (var line in text.Lines)
         {
             foreach (var (run, pos) in line.Enumerate())

@@ -28,38 +28,42 @@ public enum VideoFileSourceFitPolicy
     // Fixed height and crop / padding in Y.
     FixedHeight,
 }
+internal record FFVideoReInitializedEventArgs(long NewStartFrameIndex);
 
-internal class FFVideoFileSource : IVideoSource
+internal class FFVideoFileSource : IVideoSource, IComposeCanvas
 {
     private Process? proc;
-    private ILogger log = LogManager.GetCurrentClassLogger();
     private Stream? stdout;
     private StreamReader? stderr;
-    private FFStdoutReader? stdoutReader;
-    private Coordinate targetResolution;
     private SKImageInfo imageInfo;
-    private int bytesPerFrame;
+    private Memory<byte>? lastFrame;
+
+    private readonly Logger log = LogManager.GetLogger("MovieSharp.FFVideoFileSource");
+    private readonly int bytesPerFrame;
+    private readonly double speed;
+    private readonly Coordinate targetResolution;
+    private readonly Coordinate sourceResolution;
 
     public VideoFileSourceFitPolicy FitPolicy { get; }
     public string FileName { get; }
     public double FrameRate { get; private set; }
     public double Duration { get; private set; }
-    public Coordinate Size { get; private set; }
+    public Coordinate Size => this.targetResolution;
     public int FrameCount { get; private set; }
-    public int Position { get; private set; }
-    public Memory<byte>? LastFrame { get; private set; }
+    public long Position { get; private set; }
+    public ReadOnlyMemory<byte>? LastFrame => this.lastFrame;
     public int PixelChannels { get; private set; } = 4;
     public PixelFormat PixelFormat { get; } = PixelFormat.RGBA32;
     public string ResizeAlgo { get; set; } = "bicubic";
     public IMediaAnalysis? Infos { get; private set; }
-    public string FFMpegPath { get; set; } = "ffmpeg";
+    internal int BytesPerFrame => this.bytesPerFrame;
 
-    /// <summary>
-    /// Use PATH if set to empty.
-    /// </summary>
-    public string FFMpegBinFolder { get; set; } = string.Empty;
+    internal event EventHandler<FFVideoReInitializedEventArgs>? OnReInitialized;
 
-    public FFVideoFileSource(string filename, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null)
+    public SKImageInfo ImageInfo => this.imageInfo;
+
+
+    public FFVideoFileSource(string filename, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, double speed = 1.0)
     {
         var fi = new FileInfo(filename);
         if (!fi.Exists)
@@ -72,7 +76,20 @@ internal class FFVideoFileSource : IVideoSource
         this.proc = null;
 
         // load probes.
-        this.Infos = FFProbe.Analyse(this.FileName, new FFOptions { BinaryFolder = this.FFMpegBinFolder });
+        FFOptions? ffopt = null;
+        if (!string.IsNullOrWhiteSpace(MediaFactory.FFMPEGFolder))
+        {
+            ffopt = new FFOptions { BinaryFolder = MediaFactory.FFMPEGFolder };
+        }
+
+        try
+        {
+            this.Infos = FFProbe.Analyse(this.FileName, ffopt);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"ffmpeg executable not found, or failed fetching data from video file: {ex.Message}");
+        }
 
         if (this.Infos.VideoStreams.Count < 1)
         {
@@ -81,11 +98,12 @@ internal class FFVideoFileSource : IVideoSource
         var vidstream = this.Infos.VideoStreams[0];
 
         this.FrameRate = vidstream.FrameRate;
-        this.Size = new Coordinate(vidstream.Width, vidstream.Height);
+        this.sourceResolution = new Coordinate(vidstream.Width, vidstream.Height);
 
         // re-calculate target resolution.
-        this.targetResolution = Scale(this.Size, resolution);
+        this.targetResolution = Scale(this.sourceResolution, resolution);
         this.bytesPerFrame = this.targetResolution.X * this.targetResolution.Y * this.PixelChannels;
+        this.speed = speed;
 
         this.Duration = vidstream.Duration.TotalSeconds;
 
@@ -108,12 +126,14 @@ internal class FFVideoFileSource : IVideoSource
 
     /// <summary>
     /// Opens the file, creates the pipe.
-    /// Sets `Position` to the appropriate value (1 if startTime == 0 because
+    /// Sets `LoadingPosition` to the appropriate value (1 if startTime == 0 because
     /// it pre-reads the first frame).
     /// </summary>
     /// <param name="startTime"></param>
-    private void Init(int startIndex = 0)
+    private void Init(long startIndex = 0)
     {
+        var firstTime = this.lastFrame is null;
+
         // release resources
         this.Close(false);
 
@@ -142,10 +162,20 @@ internal class FFVideoFileSource : IVideoSource
             });
         }
 
+        var filters = new List<string>() {
+            this.BuildScaleVF(),
+        };
+        if (Math.Abs(this.speed - 1.0) > 0.001)
+        {
+            var pts = 1.0 / this.speed;
+            filters.Add($"setpts={pts:0.00}*PTS");
+        }
+        var vf = string.Join(',', filters);
+
         arglist.AddRange(new string[] {
             "-loglevel", "error",
             "-f", "image2pipe",
-            "-vf", this.BuildVF(),
+            "-vf", vf,
             "-sws_flags", this.ResizeAlgo,
             "-pix_fmt", "rgba",
             "-vcodec", "rawvideo",
@@ -156,7 +186,7 @@ internal class FFVideoFileSource : IVideoSource
         this.log.Info("Generated args: " + args);
 
         this.proc = new Process();
-        this.proc.StartInfo.FileName = this.FFMpegPath;
+        this.proc.StartInfo.FileName = MediaFactory.GetFFBinPath("ffmpeg");
         this.proc.StartInfo.Arguments = args;
         this.proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
         this.proc.StartInfo.RedirectStandardOutput = true;
@@ -167,66 +197,75 @@ internal class FFVideoFileSource : IVideoSource
 
         this.stdout = this.proc.StandardOutput.BaseStream;
         this.stderr = this.proc.StandardError;
-        this.stdoutReader = new FFStdoutReader(this.stdout, this.bytesPerFrame);
 
         this.Position = startIndex;
-        this.LastFrame = (new byte[this.bytesPerFrame]).AsMemory();
+        this.lastFrame = (new byte[this.bytesPerFrame]).AsMemory();
+
+        if (!firstTime)
+        {
+            this.OnReInitialized?.Invoke(this, new(startIndex));
+        }
     }
 
-    public void SkipFrames(int n = 1)
+    private void SkipFrames(long n)
     {
-        if (this.LastFrame is null)
+        if (n == 0)
         {
-            // not alloc memory
+            // no need to skip.
+            return;
+        }
+
+        if (this.lastFrame is null || this.stdout is null)
+        {
             this.Init(0);
         }
 
-        if (this.LastFrame is null)
+        if (this.lastFrame is null)
         {
-            throw new Exception("LOGIC ERROR: LastFrame still null after Init() called.");
+            throw new Exception("LOGIC ERROR: lastFrame still null after Init() called.");
         }
 
-        var frame = this.LastFrame!.Value;
-
-        if (this.stdoutReader != null)
+        if (this.stdout is null)
         {
-            for (long i = 0; i < n; i++)
-            {
-                this.stdoutReader.ReadNextFrame(frame);
-            }
-            this.Position += n;
+            throw new Exception("LOGIC ERROR: stdout still null after Init() called.");
         }
+
+        for (long i = 0; i < n; i++)
+        {
+            this.ReadNextFrameFromStdout();
+        }
+        var prevPosition = this.Position;
+        this.Position += n;
+        this.log.Debug($"frame skipped for {this.FileName}, n = {n}, from = {prevPosition}, to = {this.Position}.");
     }
 
     public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
-    public Memory<byte>? ReadNextFrame()
+    private ReadOnlyMemory<byte>? ReadNextFrame()
     {
-        if (this.LastFrame is null)
+        if (this.lastFrame is null)
         {
-            // not alloc memory
-            this.Init(0);
+            this.Init(this.Position);
         }
 
-        if (this.LastFrame is null)
+        if (this.lastFrame is null)
         {
-            throw new Exception("LOGIC ERROR: LastFrame still null after Init() called.");
+            throw new Exception("LOGIC ERROR: lastFrame still null after Init() called.");
         }
 
-        var frame = this.LastFrame!.Value;
+        if (this.stdout is null)
+        {
+            throw new Exception("LOGIC ERROR: stdout still null after Init() called.");
+        }
 
         using var _ = PerformanceMeasurer.UseMeasurer("read-frame");
 
+        this.ReadNextFrameFromStdout();
+
         if (this.stdout != null)
         {
-            var readed = this.stdoutReader?.ReadNextFrame(frame);
-            if (readed == 0)
-            {
-                this.log.Error($"In file {this.FileName}, {this.bytesPerFrame} bytes wanted but read 0 bytes at frame index: {this.Position} (out of a total {this.FrameCount} frames), at time {this.Position / this.FrameRate:0.00}/{this.Duration:0.00}");
-            }
-
             this.Position += 1;
-            return this.LastFrame;
+            return this.lastFrame;
         }
         else
         {
@@ -234,25 +273,25 @@ internal class FFVideoFileSource : IVideoSource
         }
     }
 
-    public unsafe void DrawFrame(SKCanvas cvs, int frameIndex, (int x, int y) position)
+    public ReadOnlyMemory<byte>? SeekAndRead(long frameIndex)
     {
 #if DEBUG
-        using var _ = PerformanceMeasurer.UseMeasurer("make-frame");
+        using var _ = PerformanceMeasurer.UseMeasurer("seek");
 #endif
         var policy = "";
-
+        var prevPosition = this.Position;
 
         if (this.proc is null)
         {
             policy = "re-init-proc_not_ready";
             this.log.Warn("Internal process not detected, trying to initialize...");
-            this.Init();
+            this.Init(frameIndex);
             this.ReadNextFrame();
         }
         else
         {
             // Use cache.
-            if (this.LastFrame is null || frameIndex < this.Position || frameIndex > this.Position + 100)
+            if (this.lastFrame is null || frameIndex < this.Position || frameIndex > this.Position + 100)
             {
                 policy = "re-seek";
                 this.Init(frameIndex);
@@ -261,34 +300,47 @@ internal class FFVideoFileSource : IVideoSource
             else if (this.Position == frameIndex)
             {
                 policy = "use-last";
-                // directly use this.LastFrame.
+                // directly use this.lastFrame.
             }
             else
             {
-                policy = "fast-forward";
-                this.SkipFrames(frameIndex - this.Position - 1);
+                var frameCount = frameIndex - this.Position - 1;
+                this.SkipFrames(frameCount);
+                policy = $"fast-forward:{frameCount}";
                 this.ReadNextFrame();
             }
         }
 
-        if (this.LastFrame is null)
+        if (policy != "fast-forward:0")
         {
-            throw new Exception("LOGIC ERROR: LastFrame still null after Init() called.");
+            this.log.Debug($"seek to {this.Position}, from = {prevPosition}, position policy: ${policy}");
         }
 
-        var lastFrame = this.LastFrame!.Value;
+        return this.LastFrame;
+    }
 
-        using (PerformanceMeasurer.UseMeasurer("make-frame-extract"))
+    public unsafe void DrawFrame(SKCanvas cvs, SKPaint? paint, int frameIndex, (int x, int y) position)
+    {
+        this.SeekAndRead(frameIndex);
+
+        if (this.lastFrame is null)
+        {
+            throw new Exception("LOGIC ERROR: lastFrame still null after Init() called.");
+        }
+
+        var lastFrame = this.lastFrame!.Value;
+
+        using (PerformanceMeasurer.UseMeasurer("make-frame"))
         {
             try
             {
                 using var handle = lastFrame.Pin();
                 using var bmp = SKBitmap.FromImage(SKImage.FromPixels(this.imageInfo, (nint)handle.Pointer));
-                cvs.DrawBitmap(bmp, new SKPoint(position.x, position.y));
+                cvs.DrawBitmap(bmp, new SKPoint(position.x, position.y), paint);
             }
             catch
             {
-                this.log.Error($"Failed to draw frame from source: ${this.FileName} @ ${frameIndex}, position policy: ${policy}");
+                this.log.Error($"Failed to draw frame from source: ${this.FileName} @ ${frameIndex}");
             }
         }
 
@@ -309,15 +361,23 @@ internal class FFVideoFileSource : IVideoSource
     {
         if (this.proc is not null)
         {
+
             if (!this.proc.HasExited)
             {
                 this.proc.Kill(true);
+
+                var errors = this.GetErrors();
+                if (errors is not null)
+                {
+                    this.log.Warn($"ffmpeg exited, with errors:\n{errors}");
+                }
+
                 this.proc = null;
             }
         }
         if (cleanup)
         {
-            this.LastFrame = null;
+            this.lastFrame = null;
             GC.Collect();
         }
     }
@@ -326,6 +386,52 @@ internal class FFVideoFileSource : IVideoSource
     {
         this.Close(true);
         GC.SuppressFinalize(this);
+    }
+
+    private string BuildScaleVF()
+    {
+        var ox = this.sourceResolution.X;
+        var oy = this.sourceResolution.Y;
+        var tx = this.targetResolution.X;
+        var ty = this.targetResolution.Y;
+
+        var or = (double)ox / oy;
+        var tr = (double)tx / ty;
+
+        if (this.FitPolicy is VideoFileSourceFitPolicy.Contain ||
+            (this.FitPolicy is VideoFileSourceFitPolicy.FixedWidth && tr < or) ||
+            (this.FitPolicy is VideoFileSourceFitPolicy.FixedHeight && tr > or)
+           )
+        {
+            return $"scale={tx}:{ty}:force_original_aspect_ratio=decrease,pad={tx}:{ty}:-1:-1:color=black";
+        }
+        else
+        {
+            return $"scale={tx}:{ty}:force_original_aspect_ratio=increase,crop={tx}:{ty}";
+        }
+    }
+
+    private void ReadNextFrameFromStdout()
+    {
+        if (this.lastFrame is null || this.stdout is null)
+        {
+            throw new Exception($"LOGIC ERROR: lastFrame({this.lastFrame is null}) or this.stdout({this.stdout is null}) is null while reading next frame from stdout.");
+        }
+        else if (this.lastFrame.Value.Length != this.bytesPerFrame)
+        {
+            throw new Exception($"LOGIC ERROR: Could not read frame, the length of the memory provided({this.lastFrame.Value.Length}) not as same as frameLength({this.bytesPerFrame}).");
+        }
+
+        try
+        {
+            this.stdout.ReadExactly(this.lastFrame.Value.Span);
+        }
+        catch (Exception ex)
+        {
+            // Use broken frame, if read failed.
+            this.log.Error($"Failed to read frame @ {this.Position} / {this.FrameCount} (time: {this.Position / this.Duration: 0.00} / {this.Duration: 0.00}) for file: ${this.FileName}, use broken frame.");
+            this.log.Error(ex.Message);
+        }
     }
 
     private static Coordinate Scale(Coordinate originSize, (int?, int?)? targetResolution = null)
@@ -366,28 +472,5 @@ internal class FFVideoFileSource : IVideoSource
         }
 
         return targetSize;
-    }
-
-    private string BuildVF()
-    {
-        var ox = this.Size.X;
-        var oy = this.Size.Y;
-        var tx = this.targetResolution.X;
-        var ty = this.targetResolution.Y;
-
-        var or = (double)ox / oy;
-        var tr = (double)tx / ty;
-
-        if (this.FitPolicy is VideoFileSourceFitPolicy.Contain ||
-            (this.FitPolicy is VideoFileSourceFitPolicy.FixedWidth && tr < or) ||
-            (this.FitPolicy is VideoFileSourceFitPolicy.FixedHeight && tr > or)
-           )
-        {
-            return $"scale={tx}:{ty}:force_original_aspect_ratio=decrease,pad={tx}:{ty}:-1:-1:color=black";
-        }
-        else
-        {
-            return $"scale={tx}:{ty}:force_original_aspect_ratio=increase,crop={tx}:{ty}";
-        }
     }
 }
