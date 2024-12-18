@@ -77,7 +77,7 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
         this.TimelineItems.Add(item);
     }
 
-    public virtual int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
+    public virtual long GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
 
     public virtual void Dispose()
@@ -85,7 +85,7 @@ internal abstract class SubtitleSourceBase : IVideoSource, ISubtitleSource
         GC.SuppressFinalize(this);
     }
 
-    public virtual void DrawFrame(SKCanvas cvs, SKPaint? paint, int frameIndex, (int x, int y) position)
+    public virtual void DrawFrame(SKCanvas cvs, SKPaint? paint, long frameIndex, (int x, int y) position)
     {
         this.DrawFrameOnTime(cvs, paint, frameIndex / this.FrameRate, position);
     }

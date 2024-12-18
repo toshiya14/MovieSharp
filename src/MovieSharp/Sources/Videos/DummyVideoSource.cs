@@ -39,9 +39,9 @@ internal class DummyVideoSource : IVideoSource
         }
     }
 
-    public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
+    public long GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
-    public void DrawFrame(SKCanvas cvs, SKPaint? paint, int frameIndex, (int x, int y) position)
+    public void DrawFrame(SKCanvas cvs, SKPaint? paint, long frameIndex, (int x, int y) position)
     {
         if (this.snapshot is null) {
             this.GenImg();

@@ -87,9 +87,9 @@ internal class SkiaSequenceSource : IVideoSource
         }
         GC.SuppressFinalize(this);
     }
-    public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
+    public long GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
-    public void DrawFrame(SKCanvas cvs, SKPaint? paint, int frameId, (int x, int y) position)
+    public void DrawFrame(SKCanvas cvs, SKPaint? paint, long frameId, (int x, int y) position)
     {
         if (this.Frames is null)
         {

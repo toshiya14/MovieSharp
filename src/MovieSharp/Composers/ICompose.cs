@@ -63,7 +63,7 @@ public interface ICompose : IAudioClip, IVideoClip
 
 //internal interface IInternalCompose : ICompose {
 //    ReadOnlyMemory<byte>? LoadBaseFrame(long frameIndex);
-//    void DrawFrameWithoutBase(SKCanvas canvas, SKPaint? paint, long frameIndex);
+//    void DrawVideosById(SKCanvas canvas, SKPaint? paint, long frameIndex);
 //    void WriteNextFrame(FFVideoFileTarget writer, long findex, ReadOnlySpan<byte> buffer);
 //    FFVideoFileTarget GetFrameWriter();
 //}

@@ -30,7 +30,7 @@ public enum VideoFileSourceFitPolicy
 }
 internal record FFVideoReInitializedEventArgs(long NewStartFrameIndex);
 
-internal class FFVideoFileSource : IVideoSource, IComposeCanvas
+internal class FFVideoFileSource : IVideoSource
 {
     private Process? proc;
     private Stream? stdout;
@@ -239,7 +239,7 @@ internal class FFVideoFileSource : IVideoSource, IComposeCanvas
         this.log.Debug($"frame skipped for {this.FileName}, n = {n}, from = {prevPosition}, to = {this.Position}.");
     }
 
-    public int GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
+    public long GetFrameId(double time) => (int)(this.FrameRate * time + 0.000001);
 
     private ReadOnlyMemory<byte>? ReadNextFrame()
     {
@@ -311,7 +311,7 @@ internal class FFVideoFileSource : IVideoSource, IComposeCanvas
             }
         }
 
-        if (policy != "fast-forward:0")
+        if (policy.Equals("fast-forward:0"))
         {
             this.log.Debug($"seek to {this.Position}, from = {prevPosition}, position policy: ${policy}");
         }
@@ -319,7 +319,7 @@ internal class FFVideoFileSource : IVideoSource, IComposeCanvas
         return this.LastFrame;
     }
 
-    public unsafe void DrawFrame(SKCanvas cvs, SKPaint? paint, int frameIndex, (int x, int y) position)
+    public unsafe void DrawFrame(SKCanvas cvs, SKPaint? paint, long frameIndex, (int x, int y) position)
     {
         this.SeekAndRead(frameIndex);
 

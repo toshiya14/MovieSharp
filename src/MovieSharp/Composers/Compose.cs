@@ -109,13 +109,13 @@ internal class Compose : ICompose
         this.audios.Add(new(time, _clip));
     }
 
-    public void DrawFrameWithoutBase(SKCanvas canvas, SKPaint? paint, long frameIndex)
+    public void DrawVideosById(SKCanvas canvas, SKPaint? paint, long frameIndex)
     {
         var time = frameIndex * this.FrameRate;
-        this.DrawWithoutBase(canvas, paint, time);
+        this.DrawVideos(canvas, paint, time);
     }
 
-    private void DrawWithoutBase(SKCanvas canvas, SKPaint? paint, double time)
+    private void DrawVideos(SKCanvas canvas, SKPaint? paint, double time)
     {
         if (time > this.Duration)
         {
@@ -152,7 +152,7 @@ internal class Compose : ICompose
         //    canvas.DrawImage(img, new SKPoint(0, 0), paint);
         //}
 
-        this.DrawWithoutBase(canvas, paint, time);
+        this.DrawVideos(canvas, paint, time);
     }
 
     public ISampleProvider GetSampler()
