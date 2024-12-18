@@ -20,24 +20,13 @@ internal record VideoFilterRule(
     internal record Preset(PresetFilter Filter): VideoFilterRule(VideoFilterType.PresetFilter);
 }
 
-internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
+internal class FilteredVideoClipProxy : VideoClipBase, IFilteredVideoClip
 {
-    private readonly IVideoClip baseclip;
-
     private readonly List<VideoFilterRule> rules = new();
-
-    public Coordinate Size => this.baseclip.Size;
-
-    public double Duration => this.baseclip.Duration;
 
     public FilteredVideoClipProxy(IVideoClip baseclip)
     {
-        this.baseclip = baseclip;
-    }
-
-    public void Dispose()
-    {
-        this.baseclip.Dispose();
+        this.BaseClips = [baseclip];
     }
 
     public IVideoClip ToClip()
@@ -45,24 +34,28 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
         return this;
     }
 
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public override void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         using var _ = PerformanceMeasurer.UseMeasurer("filtered-drawing");
 
         SKPaint _paint;
         var disposePaint = false;
-        if (paint is null) {
+        if (paint is null)
+        {
             _paint = new SKPaint() { IsAntialias = true };
             disposePaint = true;
-        } else {
+        }
+        else
+        {
             _paint = paint;
         }
 
         ApplyRules(_paint, this.rules);
 
-        this.baseclip.Draw(canvas, paint, time);
+        base.Draw(canvas, _paint, time);
 
-        if (disposePaint) {
+        if (disposePaint)
+        {
             _paint.Dispose();
         }
     }
@@ -219,10 +212,5 @@ internal class FilteredVideoClipProxy : IVideoClip, IFilteredVideoClip
                 paint.ColorFilter
             );
         }
-    }
-
-    public void Release()
-    {
-        this.baseclip.Release();
     }
 }

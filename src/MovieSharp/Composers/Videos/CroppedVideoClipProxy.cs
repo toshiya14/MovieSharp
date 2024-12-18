@@ -5,25 +5,21 @@ using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
 
-internal class CroppedVideoClipProxy : IVideoClip
+internal class CroppedVideoClipProxy : VideoClipBase
 {
-    private readonly IVideoClip baseclip;
+    public override Coordinate Size => new(croparea.Width, croparea.Height);
+
     private readonly RectBound croparea;
-
-    public Coordinate Size { get; private set; }
-
-    public double Duration => this.baseclip.Duration;
 
     public ISurfaceProxy? surface;
 
     public CroppedVideoClipProxy(IVideoClip baseclip, RectBound croparea)
     {
-        this.baseclip = baseclip;
+        this.BaseClips = [baseclip];
         this.croparea = croparea;
-        this.Size = new Coordinate(croparea.Width, croparea.Height);
     }
 
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public override void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         if (this.surface is null)
         {
@@ -33,7 +29,7 @@ internal class CroppedVideoClipProxy : IVideoClip
         using var _ = PerformanceMeasurer.UseMeasurer("cropped-drawing");
 
         this.surface.Canvas.Clear();
-        this.baseclip.Draw(this.surface.Canvas, paint, time);
+        this.BaseClips[0].Draw(this.surface.Canvas, paint, time);
         var srcrect = new SKRect(this.croparea.Left, this.croparea.Top, this.croparea.Right, this.croparea.Bottom);
         var tarrect = new SKRect(0, 0, this.croparea.Width, this.croparea.Height);
         this.surface.Canvas.Flush();
@@ -42,17 +38,10 @@ internal class CroppedVideoClipProxy : IVideoClip
         canvas.DrawImage(img, srcrect, tarrect);
     }
 
-    public void Dispose()
+    public override void Release()
     {
-        this.baseclip.Dispose();
-        this.surface?.Dispose();
-        this.surface = null;
-        GC.SuppressFinalize(this);
-    }
+        base.Release();
 
-    public void Release()
-    {
-        this.baseclip.Release();
         this.surface?.Dispose();
         this.surface = null;
     }

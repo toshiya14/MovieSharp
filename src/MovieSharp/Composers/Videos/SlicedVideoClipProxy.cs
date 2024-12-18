@@ -3,19 +3,16 @@ using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
 
-public class SlicedVideoClipProxy : IVideoClip
+internal class SlicedVideoClipProxy : VideoClipBase
 {
-    private readonly IVideoClip baseclip;
     private double StartTime { get; }
     private double EndTime { get; }
 
-    public Coordinate Size => this.baseclip.Size;
-
-    public double Duration => this.EndTime - this.StartTime;
+    public override double Duration => this.EndTime - this.StartTime;
 
     public SlicedVideoClipProxy(IVideoClip baseclip, double startTime, double endTime)
     {
-        this.baseclip = baseclip;
+        this.BaseClips = [baseclip];
         if (endTime < startTime)
         {
             throw new ArgumentException("The end time could not be earlier than the start time.");
@@ -24,23 +21,12 @@ public class SlicedVideoClipProxy : IVideoClip
         this.EndTime = endTime;
     }
 
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public override void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         var realTime = time + this.StartTime;
         if (realTime > this.StartTime && realTime <= this.EndTime)
         {
-            this.baseclip.Draw(canvas, paint, realTime);
+            base.Draw(canvas, paint, realTime);
         }
-    }
-
-    public void Dispose()
-    {
-        this.baseclip.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    public void Release()
-    {
-        this.baseclip.Release();
     }
 }

@@ -1,12 +1,8 @@
-﻿using System.Collections.Specialized;
-using MovieSharp;
-using MovieSharp.Composers;
-using MovieSharp.Debugs.Benchmarks;
-using MovieSharp.Exceptions;
-using MovieSharp.Objects;
-using MovieSharp.Skia;
+﻿using MovieSharp.Objects;
 using NLog;
 using SkiaSharp;
+
+namespace MovieSharp.Composers.Videos;
 internal class VideoSourceClip : IVideoClip
 {
     private readonly ILogger log = LogManager.GetCurrentClassLogger();

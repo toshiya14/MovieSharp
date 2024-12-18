@@ -311,7 +311,7 @@ internal class FFVideoFileSource : IVideoSource
             }
         }
 
-        if (policy.Equals("fast-forward:0"))
+        if (!policy.Equals("fast-forward:0"))
         {
             this.log.Debug($"seek to {this.Position}, from = {prevPosition}, position policy: ${policy}");
         }

@@ -3,16 +3,16 @@ using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
 
-internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
+internal class TransformedVideoClipProxy : VideoClipBase, ITransformedVideoClip
 {
-    private readonly IVideoClip baseclip;
-    private readonly List<(string, float, float?)> transforms = new();
+    private readonly List<(string, float, float?)> transforms = [];
 
-    public Coordinate Size
+    public override Coordinate Size
     {
         get
         {
-            var (wi, hi) = this.baseclip.Size;
+            var baseclip = this.BaseClips[0];
+            var (wi, hi) = baseclip.Size;
             float w = wi, h = hi;
             foreach (var t in this.transforms)
             {
@@ -34,11 +34,9 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
         }
     }
 
-    public double Duration => this.baseclip.Duration;
-
     public TransformedVideoClipProxy(IVideoClip baseclip)
     {
-        this.baseclip = baseclip;
+        this.BaseClips = [baseclip];
     }
 
     public IVideoClip ToClip()
@@ -64,7 +62,7 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
         return this;
     }
 
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public override void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         if (time > this.Duration)
         {
@@ -91,19 +89,9 @@ internal class TransformedVideoClipProxy : IVideoClip, ITransformedVideoClip
                     break;
             }
         }
-        this.baseclip.Draw(canvas, paint, time);
+        base.Draw(canvas, paint, time);
 
         canvas.Restore();
     }
 
-    public void Dispose()
-    {
-        this.baseclip.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    public void Release()
-    {
-        this.baseclip.Release();
-    }
 }

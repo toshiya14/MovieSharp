@@ -3,17 +3,12 @@ using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
 
-public class RepeatedVideoClipProxy : IVideoClip
+internal class RepeatedVideoClipProxy : VideoClipBase
 {
-    private readonly IVideoClip baseclip;
-
-    public Coordinate Size => this.baseclip.Size;
-
-    public double Duration { get; }
-
+    public override double Duration { get; }
     public RepeatedVideoClipProxy(IVideoClip baseclip, double duration)
     {
-        this.baseclip = baseclip;
+        this.BaseClips = [baseclip];
         if (duration <= 0)
         {
             throw new ArgumentException("The new duration for repeated video could not be 0 or negative.");
@@ -21,33 +16,20 @@ public class RepeatedVideoClipProxy : IVideoClip
         this.Duration = duration;
     }
 
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public override void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
-        if (time > this.Duration)
-        {
-            // Do not draw frames not in this clip.
-            return;
-        }
-        if (this.baseclip.Duration == 0) {
+        var baseclip = this.BaseClips[0];
+
+        if (baseclip.Duration == 0) {
             // Do not try to draw any duration=0 clip.
             return;
         }
+
         var realTime = time;
-        while (realTime >= this.baseclip.Duration)
+        while (realTime >= baseclip.Duration)
         {
-            realTime -= this.baseclip.Duration;
+            realTime -= baseclip.Duration;
         }
-        this.baseclip.Draw(canvas, paint, realTime);
-    }
-
-    public void Dispose()
-    {
-        this.baseclip.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    public void Release()
-    {
-        this.baseclip.Release();
+        base.Draw(canvas, paint, realTime);
     }
 }

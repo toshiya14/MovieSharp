@@ -7,28 +7,18 @@ using MovieSharp.Objects;
 using SkiaSharp;
 
 namespace MovieSharp.Composers.Videos;
-internal class ZeroVideoClip : IVideoClip
+internal class ZeroVideoClip : VideoClipBase
 {
-    public Coordinate Size { get; }
+    public override Coordinate Size { get; }
 
-    public double Duration => 0.0;
+    public override double Duration => 0.0;
 
     public ZeroVideoClip(int width, int height)
     {
         this.Size = new Coordinate(width, height);
     }
 
-    public void Dispose()
-    {
-        // Do nothing.
-    }
-
-    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
-    {
-        // Do nothing.
-    }
-
-    public void Release()
+    public override void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         // Do nothing.
     }
