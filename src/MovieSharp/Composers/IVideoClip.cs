@@ -33,10 +33,10 @@ public interface IVideoClip : IDisposable
 
 public static class IVideoClipExtensions
 {
-    public static IVideoClip MakeClipEx(this IVideoSource source, int maxCachedFrames = 16)
-    {
-        return new VideoSourceCachedClip(source, maxCachedFrames);
-    }
+    //public static IVideoClip MakeClipEx(this IVideoSource source, int maxCachedFrames = 16)
+    //{
+    //    return new VideoSourceCachedClip(source, maxCachedFrames);
+    //}
 
     public static IVideoClip MakeClip(this IVideoSource source)
     {

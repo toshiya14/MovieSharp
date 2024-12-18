@@ -141,7 +141,7 @@ internal class Compose : ICompose
         }
     }
 
-    public unsafe void Draw(SKCanvas canvas, SKPaint? paint, double time)
+    public void Draw(SKCanvas canvas, SKPaint? paint, double time)
     {
         //var findex = (long)(time * this.FrameRate);
         //var frame = this.LoadBaseFrame(findex);
@@ -275,7 +275,7 @@ internal class Compose : ICompose
             var final = video.Time + video.Clip.Duration;
             if (final < time)
             {
-                this.log.Debug($"Release rule matched @ {videos.IndexOf(video)} | {time} | {video.Time} + {video.Clip.Duration}");
+                //this.log.Debug($"Release rule matched @ {videos.IndexOf(video)} | {time} | {video.Time} + {video.Clip.Duration}");
                 tobeReleased.Add(video);
             }
         }

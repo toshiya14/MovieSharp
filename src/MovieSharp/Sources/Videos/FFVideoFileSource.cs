@@ -429,7 +429,8 @@ internal class FFVideoFileSource : IVideoSource
         catch (Exception ex)
         {
             // Use broken frame, if read failed.
-            this.log.Error($"Failed to read frame @ {this.Position} / {this.FrameCount} (time: {this.Position / this.Duration: 0.00} / {this.Duration: 0.00}) for file: ${this.FileName}, use broken frame.");
+            var time = this.Position / this.FrameRate;
+            this.log.Error($"Failed to read frame @ {this.Position} / {this.FrameCount} (time: {time: 0.00} / {this.Duration: 0.00}) for file: ${this.FileName}, use broken frame.");
             this.log.Error(ex.Message);
         }
     }
