@@ -255,12 +255,14 @@ internal class Compose : ICompose
         else if (string.IsNullOrWhiteSpace(error))
         {
             this.log.Info("Finished normally.");
+            writer.Finish();
             this.OnCompleted?.Invoke(this, new EventArgs());
         }
         else
         {
             this.log.Info("Finished. Inner Errors:\n");
             this.log.Warn(error);
+            writer.Finish();
             throw new MovieSharpException(MovieSharpErrorType.SubProcessFailed, error);
         }
     }

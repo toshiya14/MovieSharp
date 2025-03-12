@@ -28,6 +28,8 @@ public class FontDefinition
             IsAntialias = true,
             TextSize = font.Size,
             Typeface = font.Typeface,
+            StrokeCap = SKStrokeCap.Round,
+            StrokeJoin = SKStrokeJoin.Round
         };
     }
 

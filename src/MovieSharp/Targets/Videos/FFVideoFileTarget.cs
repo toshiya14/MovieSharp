@@ -31,7 +31,7 @@ internal class FFVideoFileTarget : IDisposable
 
     public void Init()
     {
-        var arglist = new List<string>() {
+        var arglist = new List<string>(32) {
             // below: input parameters.
             "-y",
             "-progress", "pipe:1",
@@ -49,34 +49,30 @@ internal class FFVideoFileTarget : IDisposable
 
         if (this.parameters.WithCopyAudio is not null)
         {
-            arglist.AddRange(new[] {
+            arglist.AddRange([
                 "-i", $"\"{this.parameters.WithCopyAudio}\"",
                 "-acodec", "copy"
-            });
+            ]);
         }
 
         // below: encoding parameters
-        arglist.AddRange(new[] {
+        arglist.AddRange([
             "-vcodec", this.parameters.Codec,
             "-preset", this.parameters.Preset
-        });
+        ]);
 
         if (this.parameters.Bitrate is not null)
         {
-            arglist.AddRange(new[] {
+            arglist.AddRange([
                 "-b", this.parameters.Bitrate
-            });
+            ]);
         }
         else if (this.parameters.CRF is not null)
         {
-            arglist.AddRange(new[] {
-                "-crf", this.parameters.CRF!.Value.ToString()
-            });
+            arglist.AddRange(["-crf", this.parameters.CRF!.Value.ToString()]);
         }
 
-        arglist.AddRange(new[] {
-            "-pix_fmt", this.parameters.TargetPixfmt
-        });
+        arglist.AddRange(["-pix_fmt", this.parameters.TargetPixfmt]);
 
         // below: filename
         var fi = new FileInfo(this.outputPath);
@@ -84,7 +80,8 @@ internal class FFVideoFileTarget : IDisposable
         {
             fi.Directory!.Create();
         }
-        arglist.Add($"\"{fi.FullName}\"");
+        arglist.AddRange(["-f", "mp4"]);
+        arglist.Add($"\"{fi.FullName}.tmp\"");
 
         // create thread
         var args = string.Join(' ', arglist);
@@ -198,6 +195,18 @@ internal class FFVideoFileTarget : IDisposable
         this.stdin.BaseStream.Write(frame);
     }
 
+    public void Finish() {
+        this.proc?.WaitForExit();
+        this.proc?.Kill(true);
+        this.proc = null;
+
+        var fi = new FileInfo(this.outputPath + ".tmp");
+        if (fi.Exists)
+        {
+            fi.MoveTo(this.outputPath);
+        }
+    }
+
     public void Close()
     {
         try
@@ -222,5 +231,12 @@ internal class FFVideoFileTarget : IDisposable
         this.Close();
         this.proc?.WaitForExit();
         this.proc?.Kill(true);
+
+        // clean up
+        var fi = new FileInfo(this.outputPath + ".tmp");
+        if (fi.Exists)
+        {
+            fi.Delete();
+        }
     }
 }
