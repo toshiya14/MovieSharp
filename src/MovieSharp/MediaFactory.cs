@@ -34,12 +34,10 @@ public static class MediaFactory
         return ffpath;
     }
 
-    public static IVideoSource LoadVideo(string filepath, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, string resizeAlgo = "lanczos", double speed = 1.0)
+    public static async Task<IVideoSource> LoadVideo(string filepath, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, string resizeAlgo = "lanczos", double speed = 1.0)
     {
-        var vid = new FFVideoFileSource(filepath, fitPolicy, resolution, speed)
-        {
-            ResizeAlgo = resizeAlgo,
-        };
+        var vid = await FFVideoFileSource.Create(filepath, fitPolicy, resolution, speed);
+        vid.ResizeAlgo = resizeAlgo;
         return vid;
     }
 

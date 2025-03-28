@@ -58,21 +58,42 @@ internal class FFVideoFileTarget : IDisposable
         // below: encoding parameters
         arglist.AddRange([
             "-vcodec", this.parameters.Codec,
-            "-preset", this.parameters.Preset
+            "-preset", this.parameters.Preset,
+            "-bf", $"{this.parameters.BF}",
+            "-color_range:v", "tv",
+            "-colorspace", "bt709",
+            "-color_primaries:v", "bt709",
+            "-profile:v", "main",
+            "-map_metadata", "0",
+            "-movflags", "use_metadata_tags"
         ]);
 
         if (this.parameters.Bitrate is not null)
         {
+            // CBR / VBR
             arglist.AddRange([
-                "-b", this.parameters.Bitrate
+                "-b:v", this.parameters.Bitrate
             ]);
+
+            if (this.parameters.Maxrate is not null)
+            {
+                // VBR
+                arglist.AddRange(["-maxrate", this.parameters.Maxrate]);
+                arglist.AddRange(["-maxrate", this.parameters.Maxrate]);
+            }
         }
         else if (this.parameters.CRF is not null)
         {
+            // CRF
             arglist.AddRange(["-crf", this.parameters.CRF!.Value.ToString()]);
         }
 
         arglist.AddRange(["-pix_fmt", this.parameters.TargetPixfmt]);
+
+        // below: metadata
+        foreach (var (key, value) in this.parameters.Metadata) {
+            arglist.AddRange(["-metadata", $"{key}='{value}'"]);
+        }
 
         // below: filename
         var fi = new FileInfo(this.outputPath);
@@ -195,7 +216,8 @@ internal class FFVideoFileTarget : IDisposable
         this.stdin.BaseStream.Write(frame);
     }
 
-    public void Finish() {
+    public void Finish()
+    {
         this.proc?.WaitForExit();
         this.proc?.Kill(true);
         this.proc = null;

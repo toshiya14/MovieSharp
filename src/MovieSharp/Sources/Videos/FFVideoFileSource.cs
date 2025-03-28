@@ -46,13 +46,13 @@ internal class FFVideoFileSource : IVideoSource
 
     public VideoFileSourceFitPolicy FitPolicy { get; }
     public string FileName { get; }
-    public double FrameRate { get; private set; }
-    public double Duration { get; private set; }
+    public double FrameRate { get; init; }
+    public double Duration { get; init; }
     public Coordinate Size => this.targetResolution;
-    public int FrameCount { get; private set; }
+    public int FrameCount { get; init; }
     public long Position { get; private set; }
     public ReadOnlyMemory<byte>? LastFrame => this.lastFrame;
-    public int PixelChannels { get; private set; } = 4;
+    public int PixelChannels { get; set; } = 4;
     public PixelFormat PixelFormat { get; } = PixelFormat.RGBA32;
     public string ResizeAlgo { get; set; } = "bicubic";
     public IMediaAnalysis? Infos { get; private set; }
@@ -62,18 +62,13 @@ internal class FFVideoFileSource : IVideoSource
 
     public SKImageInfo ImageInfo => this.imageInfo;
 
-
-    public FFVideoFileSource(string filename, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, double speed = 1.0)
+    public static async Task<FFVideoFileSource> Create(string filename, VideoFileSourceFitPolicy fitPolicy, (int?, int?)? resolution = null, double speed = 1.0, double frameRate = 30)
     {
         var fi = new FileInfo(filename);
         if (!fi.Exists)
         {
             throw new MovieSharpException(MovieSharpErrorType.ResourceNotFound, $"Not found: {fi.FullName}");
         }
-
-        // initialize members;
-        this.FileName = filename;
-        this.proc = null;
 
         // load probes.
         FFOptions? ffopt = null;
@@ -82,14 +77,25 @@ internal class FFVideoFileSource : IVideoSource
             ffopt = new FFOptions { BinaryFolder = MediaFactory.FFMPEGFolder };
         }
 
+        IMediaAnalysis info;
         try
         {
-            this.Infos = FFProbe.Analyse(this.FileName, ffopt);
+            info = await FFProbe.AnalyseAsync(filename, ffopt);
         }
         catch (Exception ex)
         {
             throw new Exception($"ffmpeg executable not found, or failed fetching data from video file: {ex.Message}");
         }
+
+        return new FFVideoFileSource(filename, fitPolicy, info, resolution, speed, frameRate);
+    }
+
+    private FFVideoFileSource(string filename, VideoFileSourceFitPolicy fitPolicy, IMediaAnalysis info, (int?, int?)? resolution = null, double speed = 1.0, double frameRate = 30)
+    {
+        // initialize members;
+        this.FileName = filename;
+        this.proc = null;
+        this.Infos = info;
 
         if (this.Infos.VideoStreams.Count < 1)
         {
@@ -97,7 +103,7 @@ internal class FFVideoFileSource : IVideoSource
         }
         var vidstream = this.Infos.VideoStreams[0];
 
-        this.FrameRate = vidstream.FrameRate;
+        this.FrameRate = frameRate;
         this.sourceResolution = new Coordinate(vidstream.Width, vidstream.Height);
 
         // re-calculate target resolution.
@@ -105,14 +111,14 @@ internal class FFVideoFileSource : IVideoSource
         this.bytesPerFrame = this.targetResolution.X * this.targetResolution.Y * this.PixelChannels;
         this.speed = speed;
 
-        this.Duration = vidstream.Duration.TotalSeconds;
+        this.Duration = vidstream.Duration.TotalSeconds / speed;
 
-        if (this.Duration == 0 && this.Infos.VideoStreams.Count > 0)
+        if (Math.Abs(this.Duration) <= 0.001 && this.Infos.VideoStreams.Count > 0)
         {
-            this.Duration = this.Infos.Duration.TotalSeconds;
+            this.Duration = this.Infos.Duration.TotalSeconds / speed;
         }
 
-        if (this.Duration == 0)
+        if (Math.Abs(this.Duration) <= 0.001)
         {
             throw new MovieSharpException(MovieSharpErrorType.ResourceLoadingFailed, "Could not determine the duration of the media, maybe it do not contains video stream.");
         }
@@ -147,32 +153,32 @@ internal class FFVideoFileSource : IVideoSource
         if (startTime != 0)
         {
             offset = Math.Min(3, startTime);
-            arglist.AddRange(new string[] {
+            arglist.AddRange([
                 "-hwaccel", "opencl",
                 "-ss", (startTime - offset).ToString("f6"),
                 "-i", $"\"{this.FileName}\"",
                 "-ss", offset.ToString("f6"),
-            });
+            ]);
         }
         else
         {
-            arglist.AddRange(new string[] {
+            arglist.AddRange([
                 "-i",
                 $"\"{this.FileName}\"",
-            });
+            ]);
         }
 
-        var filters = new List<string>() {
-            this.BuildScaleVF(),
-        };
-        if (Math.Abs(this.speed - 1.0) > 0.001)
+        var ptsRate = 1.0 / this.speed;
+        var filters = new List<string>
         {
-            var pts = 1.0 / this.speed;
-            filters.Add($"setpts={pts:0.00}*PTS");
-        }
+            this.BuildScaleVF(),
+            $"setpts=PTS*{ptsRate:0.00}",
+            $"fps={this.FrameRate:0.000}"
+        };
+
         var vf = string.Join(',', filters);
 
-        arglist.AddRange(new string[] {
+        arglist.AddRange([
             "-loglevel", "error",
             "-f", "image2pipe",
             "-vf", vf,
@@ -180,7 +186,7 @@ internal class FFVideoFileSource : IVideoSource
             "-pix_fmt", "rgba",
             "-vcodec", "rawvideo",
             "-"
-        });
+        ]);
 
         var args = string.Join(' ', arglist);
         this.log.Info("Generated args: " + args);
