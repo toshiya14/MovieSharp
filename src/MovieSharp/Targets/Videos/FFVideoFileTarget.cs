@@ -91,9 +91,13 @@ internal class FFVideoFileTarget : IDisposable
         arglist.AddRange(["-pix_fmt", this.parameters.TargetPixfmt]);
 
         // below: metadata
-        foreach (var (key, value) in this.parameters.Metadata) {
-            arglist.AddRange(["-metadata", $"{key}='{value}'"]);
+        foreach (var (key, value) in this.parameters.Metadata)
+        {
+            arglist.AddRange(["-metadata", $"{key}={value.Replace("\"", "\\\"")}"]);
         }
+
+        // below: create_time
+        arglist.AddRange(["-metadata", $"creation_time={DateTimeOffset.UtcNow:yyyy-MM-ddTHH:mm:ss.fffffffZ}"]);
 
         // below: filename
         var fi = new FileInfo(this.outputPath);
